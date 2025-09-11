@@ -3,7 +3,7 @@ const axios = require("axios");
 const path = require("path");
 const { getPrefix } = global.utils;
 const { commands, aliases } = global.GoatBot;
-const doNotDelete = "[ 🐐 | GoatBot V2 ]"; // changing this wont change the goatbot V2 of list cmd it is just a decoyy
+const doNotDelete = "[⛓️ | baka-chan  ]"; // changing this wont change the goatbot V2 of list cmd it is just a decoyy
 
 module.exports = {
   config: {
@@ -58,9 +58,9 @@ module.exports = {
 
       const totalCommands = commands.size;
       msg += `\n╭───♡ Bot & Owner info\n⇨ Total Cmds: [ ${totalCommands} ]\n`;
-      msg += `⇨ Type [ ${prefix} help <cmd name> ]\n│to learn the usage\n│Bot owner: MD Tawsif\n│profile: facebook.com/tawsif.uwu`;
+      msg += `⇨ Type [ ${prefix} help <cmd name> ]\n│to learn the usage\n│Bot owner: frnwot (farhan)│profile: https://www.facebook.com/share/1BMmLwy1JY/`;
       msg += `
-│Miku lite♡
+│baka-chan♡
 ╰───────────♡`; // its not decoy so change it if you want 
 
       await message.reply(msg);
@@ -111,4 +111,4 @@ function roleTextToString(roleText) {
     default:
       return "Unknown role";
   }
-}
+            }
