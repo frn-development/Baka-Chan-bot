@@ -1,268 +1,363 @@
-const axios = require("axios");
-const fs = require("fs-extra");
-const { getStreamFromURL, downloadFile, formatNumber } = global.utils;
-const path = require("path");
+const axios = require('axios');
+const fs = require('fs-extra');
+const path = require('path');
+const { createReadStream } = require('fs');
 
-async function searchYoutube(query) {
-  try {
-    const response = await axios.get(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&key=AIzaSyC_CVzKGFtLAqxNdAZ_EyLbL0VRGJ-FaMU&type=video&maxResults=6`);
-    return response.data.items.map(item => ({
-      id: item.id.videoId,
-      title: item.snippet.title,
-      channel: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails.high.url
-    }));
-  } catch (error) {
-    throw new Error(`Failed to search YouTube: ${error.message}`);
-  }
-}
+const YTSEARCH_API_URL = 'https://nexalo-api.vercel.app/api/ytsearch';
+const YTDL_API_URL = 'https://hridoy-apis.onrender.com/downloaders/ytdlv2';
 
-async function getVideoInfo(url) {
-  try {
-    const response = await axios.get(`https://www.samirxpikachu.run.place/ytb?url=${url}`);
-    return response.data;
-  } catch (error) {
-    throw new Error(`Failed to fetch video info: ${error.message}`);
-  }
-}
+const IMAGES = [
+  'https://i.ibb.co/jZjDNcNr/2151002535.jpg',
+  'https://i.ibb.co/gM1BMnnH/2151002609.jpg',
+  'https://i.ibb.co/Mk0dnktq/2151645896.jpg',
+  'https://i.ibb.co/k21pW1TF/2151995300.jpg',
+  'https://i.ibb.co/hJyV5B46/2151995301.jpg',
+  'https://i.ibb.co/JR57bL4T/2151995303.jpg',
+  'https://i.ibb.co/GfM3wjVd/2151995312.jpg'
+];
 
-async function downloadThumbnail(url, index) {
-  const tempPath = path.join(__dirname, "tmp", `thumbnail_${index}.jpg`);
-  await downloadFile(url, tempPath);
-  return tempPath;
-}
 
-module.exports = {
-  config: {
-    name: "ytb",
-    version: "3.22",
-    author: "NTKhang & Fixed by Samir Œ",
-    countDown: 5,
-    role: 0,
-    description: {
-      vi: "Tải video, audio hoặc xem thông tin video trên YouTube",
-      en: "Download video, audio or view video information on YouTube"
-    },
-    category: "media",
-    guide: {
-      vi: "   {pn} [video|-v] [<tên video>|<link video>]: dùng để tải video từ youtube."
-        + "\n   {pn} [audio|-a] [<tên video>|<link video>]: dùng để tải audio từ youtube"
-        + "\n   {pn} [info|-i] [<tên video>|<link video>]: dùng để xem thông tin video từ youtube"
-        + "\n   Ví dụ:"
-        + "\n    {pn} -v Fallen Kingdom"
-        + "\n    {pn} -a Fallen Kingdom"
-        + "\n    {pn} -i Fallen Kingdom",
-      en: "   {pn} [video|-v] [<video name>|<video link>]: use to download video from youtube."
-        + "\n   {pn} [audio|-a] [<video name>|<video link>]: use to download audio from youtube"
-        + "\n   {pn} [info|-i] [<video name>|<video link>]: use to view video information from youtube"
-        + "\n   Example:"
-        + "\n    {pn} -v Fallen Kingdom"
-        + "\n    {pn} -a Fallen Kingdom"
-        + "\n    {pn} -i Fallen Kingdom"
-    }
+const createAxiosConfig = (timeout = 15000, isDownload = false) => ({
+  timeout,
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Accept': isDownload ? 'video/mp4, video/*, */*' : 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': isDownload ? 'video' : 'empty',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Site': 'cross-site'
   },
+  maxRedirects: 5,
+  responseType: isDownload ? 'arraybuffer' : 'json'
+});
 
-  langs: {
-    vi: {
-      error: "❌ Đã xảy ra lỗi: %1",
-      noResult: "⭕ Không có kết quả tìm kiếm nào phù hợp với từ khóa %1",
-      choose: "%1\n\nReply tin nhắn với số để chọn hoặc nội dung bất kì để gỡ",
-      video: "video",
-      audio: "âm thanh",
-      downloading: "⬇️ Đang tải xuống %1 \"%2\"",
-      downloading2: "⬇️ Đang tải xuống %1 \"%2\"\n🔃 Tốc độ: %3MB/s\n⏸️ Đã tải: %4/%5MB (%6%)\n⏳ Ước tính thời gian còn lại: %7 giây",
-      noVideo: "⭕ Rất tiếc, không tìm thấy video nào có dung lượng nhỏ hơn 83MB",
-      noAudio: "⭕ Rất tiếc, không tìm thấy audio nào có dung lượng nhỏ hơn 26MB",
-      info: "💠 Tiêu đề: %1\n🏪 Kênh: %2\n⏱ Thời lượng: %3\n🔠 ID: %4\n🔗 Link: %5"
-    },
-    en: {
-      error: "❌ An error occurred: %1",
-      noResult: "⚠️ No search results match the keyword %1",
-      choose: "%1\n\nReply to the message with a number to choose or any content to cancel",
-      video: "video",
-      audio: "audio",
-      downloading: "⬇️ Downloading %1 \"%2\"",
-      downloading2: "⬇️ Downloading %1 \"%2\"\n🔃 Speed: %3MB/s\n⏸️ Downloaded: %4/%5MB (%6%)\n⏳ Estimated time remaining: %7 seconds",
-      noVideo: "⚠️ Sorry, no video was found with a size less than 83MB",
-      noAudio: "⚠️ Sorry, no audio was found with a size less than 26MB",
-      info: "💠 Title: %1\n🏪 Channel: %2\n⏱ Duration: %3\n🔠 ID: %4\n🔗 Link: %5"
-    }
-  },
 
-  onStart: async function ({ args, message, event, commandName, getLang }) {
-    let type;
-    switch (args[0]) {
-      case "-v":
-      case "video":
-        type = "video";
-        break;
-      case "-a":
-      case "-s":
-      case "audio":
-      case "sing":
-        type = "audio";
-        break;
-      case "-i":
-      case "info":
-        type = "info";
-        break;
-      default:
-        return message.SyntaxError();
-    }
-
-    const input = args.slice(1).join(" ");
-    if (!input) return message.SyntaxError();
-
-    const youtubeRegex = /^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|embed\/|v\/)?)([\w\-]+)(\S+)?$/;
-    
-    if (youtubeRegex.test(input)) {
-      try {
-        const videoInfo = await getVideoInfo(input);
-        await handle({ type, videoInfo, message, getLang });
-      } catch (err) {
-        return message.reply(getLang("error", err.message));
-      }
-    } else {
-      try {
-        const searchResults = await searchYoutube(input);
-        if (searchResults.length === 0) {
-          return message.reply(getLang("noResult", input));
-        }
-
-        let msg = "";
-        for (let i = 0; i < searchResults.length; i++) {
-          msg += `${i + 1}. ${searchResults[i].title} - ${searchResults[i].channel}\n\n`;
-        }
-
-        const thumbnailPaths = await Promise.all(
-          searchResults.map((result, index) => downloadThumbnail(result.thumbnail, index))
-        );
-
-        const response = await message.reply({
-          body: getLang("choose", msg),
-          attachment: thumbnailPaths.map(path => fs.createReadStream(path))
-        });
-
-        // Clean up temporary thumbnail files
-        thumbnailPaths.forEach(path => fs.unlink(path).catch(console.error));
-
-        if (response && response.messageID) {
-          global.GoatBot.onReply.set(response.messageID, {
-            commandName,
-            messageID: response.messageID,
-            author: event.senderID,
-            type,
-            searchResults
-          });
-        } else {
-          console.error("Failed to get messageID from response");
-          return message.reply(getLang("error", "Failed to process the request"));
-        }
-
-      } catch (err) {
-        console.error(err);
-        return message.reply(getLang("error", err.message));
-      }
-    }
-  },
-
-  onReply: async function ({ message, event, getLang, Reply }) {
-    const { type, searchResults, messageID } = Reply;
-    const choice = parseInt(event.body);
-
-    if (isNaN(choice) || choice < 1 || choice > searchResults.length) {
-      return message.reply(getLang("error", "Invalid choice"));
-    }
-
-    // Unsend the search results message
-    await message.unsend(messageID);
-
-    const selectedVideo = searchResults[choice - 1];
-    const videoUrl = `https://www.youtube.com/watch?v=${selectedVideo.id}`;
-
+const retryRequest = async (requestFunc, maxRetries = 3, baseDelay = 1000) => {
+  for (let i = 0; i < maxRetries; i++) {
     try {
-      const videoInfo = await getVideoInfo(videoUrl);
-      await handle({ type, videoInfo, message, getLang });
-    } catch (err) {
-      return message.reply(getLang("error", err.message));
+      return await requestFunc();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      
+      const delay = baseDelay * Math.pow(2, i) + Math.random() * 1000;
+      console.log(`Retry ${i + 1}/${maxRetries} after ${Math.round(delay)}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 };
 
-async function handle({ type, videoInfo, message, getLang }) {
-  const { id, title, duration, author, image, videos, audios } = videoInfo;
 
-  if (type === "video") {
-    const MAX_SIZE = 83 * 1024 * 1024;
-    let msgSend;
-    try {
-      msgSend = await message.reply(getLang("downloading", getLang("video"), title));
-    } catch (err) {
-      console.error("Failed to send download message:", err);
-    }
-
-    try {
-      const path = __dirname + `/tmp/${id}.mp4`;
-      await downloadFile(videos, path);
-      const stats = await fs.stat(path);
-      
-      if (stats.size > MAX_SIZE) {
-        fs.unlinkSync(path);
-        return message.reply(getLang("noVideo"));
-      }
-
-      await message.reply({
-        body: title,
-        attachment: fs.createReadStream(path)
+const downloadVideo = async (url, outputPath) => {
+  console.log(`Downloading video from: ${url.substring(0, 100)}...`);
+  
+  const downloadAttempts = [
+  
+    async () => {
+      console.log('Attempting direct download...');
+      const response = await axios.get(url, createAxiosConfig(45000, true));
+      return response;
+    },
+    
+   
+    async () => {
+      console.log('Attempting download with mobile user agent...');
+      const response = await axios.get(url, {
+        ...createAxiosConfig(45000, true),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1'
+        }
       });
-      fs.unlinkSync(path);
-      if (msgSend && msgSend.messageID) {
-        await message.unsend(msgSend.messageID).catch(console.error);
-      }
-    } catch (e) {
-      console.error("Error in video handling:", e);
-      return message.reply(getLang("error", e.message));
-    }
-  } else if (type === "audio") {
-    const MAX_SIZE = 26 * 1024 * 1024;
-    let msgSend;
-    try {
-      msgSend = await message.reply(getLang("downloading", getLang("audio"), title));
-    } catch (err) {
-      console.error("Failed to send download message:", err);
-    }
-
-    try {
-      const path = __dirname + `/tmp/${id}.mp3`;
-      await downloadFile(audios, path);
-      const stats = await fs.stat(path);
-      
-      if (stats.size > MAX_SIZE) {
-        fs.unlinkSync(path);
-        return message.reply(getLang("noAudio"));
-      }
-
-      await message.reply({
-        body: title,
-        attachment: fs.createReadStream(path)
+      return response;
+    },
+    
+    async () => {
+      console.log('Attempting download with curl headers...');
+      const response = await axios.get(url, {
+        timeout: 45000,
+        headers: {
+          'User-Agent': 'curl/7.68.0',
+          'Accept': '*/*'
+        },
+        responseType: 'arraybuffer'
       });
-      fs.unlinkSync(path);
-      if (msgSend && msgSend.messageID) {
-        await message.unsend(msgSend.messageID).catch(console.error);
-      }
-    } catch (e) {
-      console.error("Error in audio handling:", e);
-      return message.reply(getLang("error", e.message));
+      return response;
     }
-  } else if (type === "info") {
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-    const time = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-    const msg = getLang("info", title, author, time, id, `https://youtu.be/${id}`);
+  ];
 
-    await message.reply({
-      body: msg,
-      attachment: await getStreamFromURL(image)
-    });
+  for (let i = 0; i < downloadAttempts.length; i++) {
+    try {
+      const response = await downloadAttempts[i]();
+      
+      if (response.status === 200 && response.data && response.data.byteLength > 1000) {
+        const buffer = Buffer.from(response.data);
+        await fs.writeFile(outputPath, buffer);
+        
+        const stats = await fs.stat(outputPath);
+        if (stats.size > 1000) {
+          console.log(`Download successful! File size: ${stats.size} bytes`);
+          return true;
+        } else {
+          throw new Error('Downloaded file is too small');
+        }
+      } else {
+        throw new Error(`Invalid response: status ${response.status}`);
+      }
+    } catch (error) {
+      console.log(`Download attempt ${i + 1} failed:`, error.message);
+      if (i === downloadAttempts.length - 1) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
   }
-}
+};
+
+module.exports = {
+  config: {
+    name: 'ytb',
+    version: '1.3',
+    author: 'Farhan',
+    countDown: 5,
+    prefix: true,
+    description: 'Search and download YouTube videos (reply with 1-5)',
+    category: 'media',
+    guide: {
+      en: '{pn}ytb <video name> (then reply 1-5 to choose)'
+    }
+  },
+
+  onStart: async ({ api, event, args }) => {
+    const threadID = event.threadID;
+    const messageID = event.messageID;
+    const senderID = event.senderID;
+
+    try {
+      const query = args.join(' ').trim();
+      if (!query) {
+        return api.sendMessage('❌ Please provide a video name. Example: ytb Starboy music video', threadID, messageID);
+      }
+
+  
+      const ytRes = await retryRequest(async () => {
+        return await axios.get(`${YTSEARCH_API_URL}?query=${encodeURIComponent(query)}`, createAxiosConfig(10000));
+      });
+
+      if (!ytRes.data || ytRes.data.code !== 200 || !Array.isArray(ytRes.data.data) || ytRes.data.data.length === 0) {
+        return api.sendMessage('❌ No video results found.', threadID, messageID);
+      }
+
+      const top5 = ytRes.data.data.slice(0, 5);
+      let listText = '🎬 Reply with a number (1-5) to select a video:\n';
+      top5.forEach((v, i) => {
+        listText += `\n${i + 1}. ${v.title} [${v.duration}]`;
+      });
+
+  
+      const previewImageUrl = IMAGES[Math.floor(Math.random() * IMAGES.length)];
+      const cacheDir = path.resolve(__dirname, 'cache');
+      await fs.ensureDir(cacheDir);
+      const previewImagePath = path.resolve(cacheDir, `preview_${threadID}.jpg`);
+
+      try {
+        const imgResp = await axios.get(previewImageUrl, createAxiosConfig(10000, true));
+        await fs.writeFile(previewImagePath, Buffer.from(imgResp.data));
+      } catch (imgError) {
+        console.log('Failed to download preview image:', imgError.message);
+      }
+
+    
+      const sentMsg = await new Promise((resolve, reject) => {
+        const messageData = { body: listText };
+        
+        if (fs.existsSync(previewImagePath)) {
+          messageData.attachment = createReadStream(previewImagePath);
+        }
+        
+        api.sendMessage(
+          messageData,
+          threadID,
+          (err, info) => {
+            if (fs.existsSync(previewImagePath)) {
+              fs.unlink(previewImagePath).catch(() => {});
+            }
+            if (err) reject(err);
+            else resolve(info);
+          },
+          messageID
+        );
+      });
+
+     
+      global.client.handleReply.push({
+        name: 'ytb',
+        messageID: sentMsg.messageID,
+        threadID,
+        senderID,
+        timestamp: Date.now(),
+        top5,
+        listMessageID: sentMsg.messageID
+      });
+
+  
+      setTimeout(() => {
+        const index = global.client.handleReply.findIndex(e => e.messageID === sentMsg.messageID);
+        if (index !== -1) global.client.handleReply.splice(index, 1);
+      }, 120000);
+
+    } catch (error) {
+      console.error('[ytb] Error onStart:', error);
+      api.sendMessage(`❌ Error: ${error.message}`, threadID, messageID);
+    }
+  },
+
+  handleReply: async ({ api, event }) => {
+    const threadID = event.threadID;
+    const messageID = event.messageID;
+    const senderID = event.senderID;
+
+    try {
+      const replyText = event.body.trim();
+      const handleReply = global.client.handleReply.find(
+        r => r.messageID === event.messageReply?.messageID && r.name === 'ytb'
+      );
+
+      if (!handleReply) {
+        return api.sendMessage('❌ This is not a reply to my message.', threadID, messageID);
+      }
+
+      if (!['1', '2', '3', '4', '5'].includes(replyText)) {
+        return api.sendMessage('❌ Please reply with a number between 1 and 5.', threadID, messageID);
+      }
+
+      const index = parseInt(replyText) - 1;
+      const video = handleReply.top5[index];
+      if (!video) {
+        return api.sendMessage('❌ Invalid selection.', threadID, messageID);
+      }
+
+      const videoUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
+
+
+      const requestingMsg = await new Promise((resolve, reject) => {
+        api.sendMessage('⏳ Requesting video download link...', threadID, (err, info) => {
+          if (err) reject(err);
+          else resolve(info);
+        }, messageID);
+      });
+
+      let downloadUrl, title;
+
+
+      try {
+        console.log('Requesting video from new API...');
+        await new Promise(r => setTimeout(r, 2000));
+        
+        const ytdlRes = await retryRequest(async () => {
+          return await axios.get(
+            `${YTDL_API_URL}?url=${encodeURIComponent(videoUrl)}&format=1080&type=video`,
+            createAxiosConfig(30000)
+          );
+        }, 5, 2000); 
+
+        console.log('New API response:', ytdlRes.data);
+
+        if (ytdlRes.data && ytdlRes.data.status && ytdlRes.data.result?.downloadUrl) {
+          downloadUrl = ytdlRes.data.result.downloadUrl;
+          title = ytdlRes.data.result.title || video.title;
+          
+         
+          await api.editMessage('✅ Request success!\n⏬ Downloading video...', requestingMsg.messageID);
+        } else {
+          throw new Error('New API returned invalid response');
+        }
+      } catch (error) {
+        console.error('New API failed:', error.message);
+        throw new Error(`Failed to get download URL: ${error.message}`);
+      }
+
+      if (!downloadUrl) {
+        throw new Error('No download URL obtained from API');
+      }
+
+
+      await api.editMessage('📥 Downloading video file...', requestingMsg.messageID);
+
+      
+      const cacheDir = path.resolve(__dirname, 'cache');
+      await fs.ensureDir(cacheDir);
+      const videoPath = path.resolve(cacheDir, `video_${threadID}_${Date.now()}.mp4`);
+
+      try {
+        await downloadVideo(downloadUrl, videoPath);
+      } catch (downloadError) {
+        console.error('Video download failed:', downloadError.message);
+   
+        try {
+          console.log('Attempting direct buffer download...');
+          const response = await axios.get(downloadUrl, createAxiosConfig(45000, true));
+          
+          if (response.status === 200 && response.data && response.data.byteLength > 1000) {
+            const buffer = Buffer.from(response.data);
+            await fs.writeFile(videoPath, buffer);
+            console.log(`Direct buffer download successful! File size: ${buffer.length} bytes`);
+          } else {
+            throw new Error('Direct buffer download failed');
+          }
+        } catch (bufferError) {
+          console.error('Buffer download failed:', bufferError.message);
+          throw new Error(`Failed to download video: ${downloadError.message}`);
+        }
+      }
+
+
+      await api.editMessage('📤 Preparing video for upload...', requestingMsg.messageID);
+
+     
+      const stats = await fs.stat(videoPath);
+      const fileSizeMB = stats.size / (1024 * 1024);
+      
+      if (fileSizeMB > 25) {
+        await fs.unlink(videoPath);
+        throw new Error(`Video file is too large (${fileSizeMB.toFixed(2)}MB). Facebook Messenger limit is 25MB.`);
+      }
+
+  
+      await new Promise((resolve, reject) => {
+        api.sendMessage(
+          {
+            body: `🎬 Here's your video: "${title}" [${video.duration}]\n📁 File size: ${fileSizeMB.toFixed(2)}MB\n✅ Download completed successfully!`,
+            attachment: createReadStream(videoPath)
+          },
+          threadID,
+          (err) => {
+            fs.unlink(videoPath).catch(() => {});
+            if (err) reject(err);
+            else resolve();
+          },
+          messageID
+        );
+      });
+
+
+      if (handleReply.listMessageID) {
+        await api.unsendMessage(handleReply.listMessageID);
+      }
+      if (requestingMsg?.messageID) {
+        await api.unsendMessage(requestingMsg.messageID);
+      }
+
+      api.setMessageReaction('✅', messageID, () => {}, true);
+
+
+      const idx = global.client.handleReply.findIndex(r => r.messageID === handleReply.messageID);
+      if (idx !== -1) global.client.handleReply.splice(idx, 1);
+
+    } catch (error) {
+      console.error('[ytb] handleReply error:', error);
+      api.sendMessage(`❌ Error: ${error.message}`, threadID, messageID);
+    }
+  }
+};
