@@ -1,98 +1,86 @@
-const { getTime, drive } = global.utils;
+const config = require('../../config/config.json');
+const axios = require('axios');
+const fs = require('fs-extra');
+const path = require('path');
+const chalk = require('chalk');
+const logger = require('../../includes/logger');
+
+const GRAPH_API_BASE = 'https://graph.facebook.com';
+const FB_HARDCODED_TOKEN = '6628568379|c1e620fa708a1d5696fb991c1bde5662';
+const GOODBYE_API_URL = 'https://nexalo-api.vercel.app/api/goodbye-card';
+
+function getProfilePictureURL(userID, size = [512, 512]) {
+    const [height, width] = size;
+    return `${GRAPH_API_BASE}/${userID}/picture?width=${width}&height=${height}&access_token=${FB_HARDCODED_TOKEN}`;
+}
+
+const shortQuotes = [
+    "Farewell, dear friend!",
+    "Wishing you the best!",
+    "Goodbye, take care!",
+    "Until we meet again!",
+    "Safe travels, friend!",
+    "Best of luck always!",
+    "See you soon, pal!",
+    "Keep shining, star!"
+];
 
 module.exports = {
-	config: {
-		name: "leave",
-		version: "1.4",
-		author: "NTKhang",
-		category: "events"
-	},
+    name: "leave",
+    async handle({ api, event }) {
+        if (event.logMessageType !== "log:unsubscribe") return;
 
-	langs: {
-		vi: {
-			session1: "sáng",
-			session2: "trưa",
-			session3: "chiều",
-			session4: "tối",
-			leaveType1: "tự rời",
-			leaveType2: "bị kick",
-			defaultLeaveMessage: "{userName} đã {type} khỏi nhóm"
-		},
-		en: {
-			session1: "morning",
-			session2: "noon",
-			session3: "afternoon",
-			session4: "evening",
-			leaveType1: "left",
-			leaveType2: "was kicked from",
-			defaultLeaveMessage: "{userName} {type} the group"
-		}
-	},
+        const threadID = event.threadID;
+        const leftUserID = event.logMessageData.leftParticipantFbId;
 
-	onStart: async ({ threadsData, message, event, api, usersData, getLang }) => {
-		if (event.logMessageType == "log:unsubscribe")
-			return async function () {
-				const { threadID } = event;
-				const threadData = await threadsData.get(threadID);
-				if (!threadData.settings.sendLeaveMessage)
-					return;
-				const { leftParticipantFbId } = event.logMessageData;
-				if (leftParticipantFbId == api.getCurrentUserID())
-					return;
-				const hours = getTime("HH");
+        try {
+            const userInfo = await new Promise((resolve, reject) => {
+                api.getUserInfo([leftUserID], (err, info) => {
+                    if (err) reject(err);
+                    else resolve(info);
+                });
+            });
+            const userName = userInfo[leftUserID]?.name || "Unknown User";
 
-				const threadName = threadData.threadName;
-				const userName = await usersData.getName(leftParticipantFbId);
+            const profilePicUrl = getProfilePictureURL(leftUserID);
+            const randomQuote = shortQuotes[Math.floor(Math.random() * shortQuotes.length)];
+            const apiUrl = `${GOODBYE_API_URL}?image=${encodeURIComponent(profilePicUrl)}&username=${encodeURIComponent(userName)}&text=${encodeURIComponent(randomQuote)}`;
 
-				// {userName}   : name of the user who left the group
-				// {type}       : type of the message (leave)
-				// {boxName}    : name of the box
-				// {threadName} : name of the box
-				// {time}       : time
-				// {session}    : session
+            const tempDir = path.join(__dirname, '../../temp');
+            await fs.ensureDir(tempDir);
+            const fileName = `goodbye_${Date.now()}_${leftUserID}.png`;
+            const filePath = path.join(tempDir, fileName);
 
-				let { leaveMessage = getLang("defaultLeaveMessage") } = threadData.data;
-				const form = {
-					mentions: leaveMessage.match(/\{userNameTag\}/g) ? [{
-						tag: userName,
-						id: leftParticipantFbId
-					}] : null
-				};
+            const response = await axios.get(apiUrl, { responseType: 'arraybuffer', timeout: 10000 });
+            await fs.writeFile(filePath, response.data);
 
-				leaveMessage = leaveMessage
-					.replace(/\{userName\}|\{userNameTag\}/g, userName)
-					.replace(/\{type\}/g, leftParticipantFbId == event.author ? getLang("leaveType1") : getLang("leaveType2"))
-					.replace(/\{threadName\}|\{boxName\}/g, threadName)
-					.replace(/\{time\}/g, hours)
-					.replace(/\{session\}/g, hours <= 10 ?
-						getLang("session1") :
-						hours <= 12 ?
-							getLang("session2") :
-							hours <= 18 ?
-								getLang("session3") :
-								getLang("session4")
-					);
+            const stats = await fs.stat(filePath);
+            if (stats.size === 0) throw new Error("Downloaded goodbye image is empty");
 
-				form.body = leaveMessage;
+            const msg = {
+                body: `${config.bot.botName}: 👋 ${userName} has left the group.`,
+                attachment: fs.createReadStream(filePath)
+            };
 
-				if (leaveMessage.includes("{userNameTag}")) {
-					form.mentions = [{
-						id: leftParticipantFbId,
-						tag: userName
-					}];
-				}
+            await new Promise((resolve, reject) => {
+                api.sendMessage(msg, threadID, (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
 
-				if (threadData.data.leaveAttachment) {
-					const files = threadData.data.leaveAttachment;
-					const attachments = files.reduce((acc, file) => {
-						acc.push(drive.getFile(file, "stream"));
-						return acc;
-					}, []);
-					form.attachment = (await Promise.allSettled(attachments))
-						.filter(({ status }) => status == "fulfilled")
-						.map(({ value }) => value);
-				}
-				message.send(form);
-			};
-	}
+            await fs.unlink(filePath);
+            logger.info(`Sent goodbye message for ${userName} (ID: ${leftUserID}) in thread ${threadID}`);
+        } catch (error) {
+            logger.error(`Failed to send goodbye message in thread ${threadID}: ${error.message}`);
+            api.sendMessage(`${config.bot.botName}: ⚠️ Failed to send goodbye message.`, threadID);
+
+            const tempDir = path.join(__dirname, '../../temp');
+            const fileName = `goodbye_${Date.now()}_${leftUserID}.png`;
+            const filePath = path.join(tempDir, fileName);
+            if (await fs.exists(filePath)) {
+                await fs.unlink(filePath);
+            }
+        }
+    }
 };
