@@ -3,24 +3,24 @@ const axios = require("axios");
 const path = require("path");
 const { getPrefix } = global.utils;
 const { commands, aliases } = global.GoatBot;
-const doNotDelete = "[⛓️ | baka-chan]"; // decoy string
+const doNotDelete = "[⛓️ | baka-chan]"; // decoy
 
 module.exports = {
   config: {
     name: "help",
-    version: "1.20",
-    author: "NTKhang ✦ MD Tawsif ✦ Farhan",
+    version: "1.18",
+    author: "NTKhang & MD Tawsif & Farhan",
     countDown: 5,
     role: 0,
     shortDescription: {
       en: "View command usage and list all commands directly",
     },
     longDescription: {
-      en: "View command usage and list all commands directly with categories",
+      en: "View command usage and list all commands directly",
     },
     category: "info",
     guide: {
-      en: "{pn} [command name]",
+      en: "{pn} / help cmdName ",
     },
     priority: 1,
   },
@@ -31,9 +31,8 @@ module.exports = {
     const prefix = getPrefix(threadID);
 
     if (args.length === 0) {
-      // ✦ Build categories
       const categories = {};
-      let msg = `✦━━━━『 𝗕𝗢𝗧 𝗛𝗘𝗟𝗣 』━━━━✦\n`;
+      let msg = `✦━━━━『 𝗖𝗠𝗗 𝗟𝗜𝗦𝗧 』━━━━✦\n`;
 
       for (const [name, value] of commands) {
         if (value.config.role > 1 && role < value.config.role) continue;
@@ -45,26 +44,26 @@ module.exports = {
 
       Object.keys(categories).forEach((category) => {
         if (category !== "info") {
-          msg += `\n╭─✦ ${category.toUpperCase()}\n`;
+          msg += `\n╭─✦ ${category.toUpperCase()}`;
 
           const names = categories[category].commands.sort();
           for (let i = 0; i < names.length; i += 3) {
             const cmds = names.slice(i, i + 3).map((item) => `✧ ${item}`);
-            msg += `│ ${cmds.join("   ")}\n`;
+            msg += `\n│ ${cmds.join("   ")}`;
           }
 
-          msg += `╰─────────────✦\n`;
+          msg += `\n╰─────────────✦`;
         }
       });
 
       const totalCommands = commands.size;
-      msg += `\n╭─✦ 𝗕𝗢𝗧 & 𝗢𝗪𝗡𝗘𝗥 𝗜𝗡𝗙𝗢\n`;
-      msg += `│ 📜 Total Cmds: ${totalCommands}\n`;
-      msg += `│ 💡 Usage: ${prefix}help <cmd>\n`;
-      msg += `│ 👑 Owner: frnwot (Farhan)\n`;
-      msg += `│ 🌐 Profile: https://www.facebook.com/share/1BMmLwy1JY/\n`;
-      msg += `│ ${doNotDelete}\n`;
-      msg += `╰─────────────✦`;
+      msg += `\n\n╭─✦ BOT INFO`;
+      msg += `\n│ 📜 Total Cmds: ${totalCommands}`;
+      msg += `\n│ 💡 Usage: ${prefix}help <cmd name>`;
+      msg += `\n│ 👑 Owner: frnwot (Farhan)`;
+      msg += `\n│ 🌐 Profile: https://www.facebook.com/share/1BMmLwy1JY/`;
+      msg += `\n│ ${doNotDelete}`;
+      msg += `\n╰─────────────✦`;
 
       await message.reply(msg);
     } else {
@@ -83,15 +82,12 @@ module.exports = {
           : "No description";
 
         const guideBody = configCommand.guide?.en || "No guide available.";
-        const usage = guideBody
-          .replace(/{p}/g, prefix)
-          .replace(/{n}/g, configCommand.name);
+        const usage = guideBody.replace(/{p}/g, prefix).replace(/{n}/g, configCommand.name);
 
-        const response =
+        const response = 
 `✦━━━━『 𝗖𝗠𝗗 𝗜𝗡𝗙𝗢 』━━━━✦
 📌 Name: ${configCommand.name}
 📖 Description: ${longDescription}
-
 📂 Aliases: ${configCommand.aliases ? configCommand.aliases.join(", ") : "None"}
 ⚙️ Version: ${configCommand.version || "1.0"}
 🛡️ Role: ${roleText}
@@ -104,7 +100,7 @@ module.exports = {
         await message.reply(response);
       }
     }
-  },
+  }
 };
 
 function roleTextToString(roleText) {
@@ -121,17 +117,3 @@ function roleTextToString(roleText) {
       return "Unknown role";
   }
 }
-};
-
-function roleTextToString(roleText) {
-  switch (roleText) {
-    case 0:
-      return "0 (All users)";
-    case 1:
-      return "1 (Group administrators)";
-    case 2:
-      return "2 (Admin bot)";
-    default:
-      return "Unknown role";
-  }
-            }
