@@ -11,10 +11,10 @@ module.exports.config = {
   version: "1.0.0",
   hasPermssion: 0,
   credits: "RAHAT",
-  description: "Download from Facebook, TikTok, CapCut, YouTube, Instagram, Pinterest etc.",
+  description: "Facebook, TikTok, CapCut, YouTube, Instagram, Pinterest, Imgur Downloader",
   commandCategory: "other",
   category: "others",
-  usage: "fb/tiktok/youtube/insta link",
+  usage: "link",
   usePrefix: true,
   prefix: true,
   cooldowns: 2,
@@ -43,7 +43,7 @@ module.exports.handleEvent = async function ({ api, event }) {
       dipto.startsWith("https://youtube.com/")
     ) {
       api.sendMessage(
-        "📥 Please wait, processing your video download...\n\n free API",
+        "📥 Please wait, processing your video download...\n\nusername Api",
         event.threadID,
         event.messageID
       );
@@ -51,20 +51,20 @@ module.exports.handleEvent = async function ({ api, event }) {
       const res = await axios.get(
         `${await baseApiUrl()}/alldl?url=${encodeURIComponent(dipto)}`
       );
-
       const bb = res.data;
+
       if (!bb || !bb.result) {
         return api.sendMessage(
-          "⚠️ Unable to fetch download link. Please try another link.",
+          "⚠️ Failed to fetch download link. Please check your URL.",
           event.threadID,
           event.messageID
         );
       }
 
       const shortUrl = await tinyurl.shorten(bb.result);
-      const MSG = `✅ Download ready!\nURL: ${shortUrl}`;
-      let ex, cp;
+      const MSG = `✅ username Api — Download URL: ${shortUrl}`;
 
+      let ex, cp;
       if (bb.result.includes(".jpg")) {
         ex = ".jpg";
         cp = "🖼️ Here's your Photo:";
@@ -80,9 +80,8 @@ module.exports.handleEvent = async function ({ api, event }) {
       }
 
       const path = __dirname + `/cache/video${ex}`;
-      const vid = (await axios.get(bb.result, { responseType: "arraybuffer" }))
-        .data;
-      fs.writeFileSync(path, Buffer.from(vid));
+      const fileData = (await axios.get(bb.result, { responseType: "arraybuffer" })).data;
+      fs.writeFileSync(path, Buffer.from(fileData));
 
       api.sendMessage(
         {
@@ -95,7 +94,7 @@ module.exports.handleEvent = async function ({ api, event }) {
       );
     }
 
-    // ImgUr direct download
+    // Imgur Direct Downloader
     if (dipto.startsWith("https://i.imgur.com")) {
       const diptoExt = dipto.substring(dipto.lastIndexOf("."));
       const response = await axios.get(dipto, { responseType: "arraybuffer" });
