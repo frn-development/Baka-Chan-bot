@@ -2,51 +2,42 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
-module.exports.config = {
-  name: "edit",
-  version: "1.1",
-  permission: 0,
-  credits: "Khan Rahul RK",
-  description: "AI image editing using a prompt + image or attachment",
-  prefix: true,
-  category: "image",
-  usages: "editimg [prompt] + reply image or link",
-  cooldowns: 5,
-  dependencies: { axios: "" }
-};
+module.exports = {
+  config: {
+    name: "edit",
+    author: "frnwot",
+    category: "image",
+    countDown: 5,
+    role: 0,
+    guide: { en: "edit <prompt> | reply to image or provide link" }
+  },
 
-module.exports.run = async ({ api, event, args }) => {
-  try {
-    // Get attachment from reply or link
-    let imageUrl = event.messageReply?.attachments?.[0]?.url || null;
+  onStart: async function({ message, event, args }) {
     const prompt = args.join(" ").split("|")[0]?.trim();
+    let imageUrl = event.messageReply?.attachments?.[0]?.url || null;
 
     // If URL provided after pipe
     if (!imageUrl && args.length > 1) {
       imageUrl = args.join(" ").split("|")[1]?.trim();
     }
 
-    // Check if both prompt and image are provided
+    // Validate prompt and image
     if (!imageUrl || !prompt) {
-      return api.sendMessage(
+      return message.reply(
         `📸 𝗘𝗗𝗜𝗧•\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
         `⛔️ You must provide both a prompt and an image!\n\n` +
         `✨ Example:\n` +
-        `▶️ edit your prompt|\n\n` +
+        `▶️ edit add cute girlfriend |\n\n` +
         `🖼️ Or reply to an image:\n` +
-        `▶️ edit add what you want,
-        event.threadID,
-        event.messageID
+        `▶️ edit add cute girlfriend`
       );
     }
 
     imageUrl = imageUrl.replace(/\s/g, "");
     if (!/^https?:\/\//.test(imageUrl)) {
-      return api.sendMessage(
-        `⚠️ Invalid image URL!\n🔗 Must start with http:// or https://`,
-        event.threadID,
-        event.messageID
+      return message.reply(
+        `⚠️ Invalid image URL! Must start with http:// or https://`
       );
     }
 
@@ -55,53 +46,40 @@ module.exports.run = async ({ api, event, args }) => {
       prompt
     )}&image=${encodeURIComponent(imageUrl)}`;
 
-    // Send waiting message
-    const waitMsg = await api.sendMessage("⏳ Please wait, editing image...", event.threadID);
+    // React with waiting emoji
+    message.reaction("⏳", event.messageID);
 
-    // Prepare temporary file path
-    const cacheDir = path.join(__dirname, "cache");
-    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-    const tempPath = path.join(cacheDir, `edited_${event.senderID}.jpg`);
+    try {
+      // Prepare temp cache
+      const cacheDir = path.join(__dirname, "cache");
+      if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+      const tempPath = path.join(cacheDir, `edited_${event.senderID}.jpg`);
 
-    // Fetch edited image
-    const response = await axios({
-      method: "GET",
-      url: apiUrl,
-      responseType: "stream"
-    });
+      const response = await axios({
+        method: "GET",
+        url: apiUrl,
+        responseType: "stream"
+      });
 
-    const writer = fs.createWriteStream(tempPath);
-    response.data.pipe(writer);
+      const writer = fs.createWriteStream(tempPath);
+      response.data.pipe(writer);
 
-    writer.on("finish", () => {
-      api.sendMessage(
-        {
-          body: `🔍 Prompt: "${prompt}"\n🖼️ AI image is ready! ✨`,
+      writer.on("finish", async () => {
+        await message.reply({
+          body: `✅ Image edited successfully!\n🔍 Prompt: "${prompt}"`,
           attachment: fs.createReadStream(tempPath)
-        },
-        event.threadID,
-        () => {
-          fs.unlinkSync(tempPath); // delete temp file
-          api.unsendMessage(waitMsg.messageID); // remove waiting message
-        },
-        event.messageID
-      );
-    });
+        });
+        fs.unlinkSync(tempPath); // remove temp file
+      });
 
-    writer.on("error", (err) => {
-      console.error(err);
-      api.sendMessage(
-        "❌ Failed to save the image file.",
-        event.threadID,
-        event.messageID
-      );
-    });
-  } catch (error) {
-    console.error(error);
-    api.sendMessage(
-      "❌ Failed to generate image. Please try again later.",
-      event.threadID,
-      event.messageID
-    );
+      writer.on("error", (err) => {
+        console.error(err);
+        message.reply("❌ Failed to save the image file.");
+      });
+
+    } catch (error) {
+      console.error(error);
+      message.reply("❌ Failed to generate image. Try again later.");
+    }
   }
 };
