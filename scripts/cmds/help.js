@@ -26,6 +26,7 @@ module.exports = {
     const videoPath = path.join(__dirname, "..", "assets", "video.mp4");
 
     if (args.length === 0) {
+      // Build command list
       const categories = {};
       let msg = `✦━━━━『 𝗖𝗠𝗗 𝗟𝗜𝗦𝗧 』━━━━✦\n`;
 
@@ -66,21 +67,20 @@ module.exports = {
       }
 
       return message.reply(msg);
-    }
+    } else {
+      // Show info for a specific command
+      const commandName = args[0].toLowerCase();
+      const command = commands.get(commandName) || commands.get(aliases.get(commandName));
+      if (!command) return message.reply(`⚠️ Command "${commandName}" not found.`);
 
-    // Show info for a specific command
-    const commandName = args[0].toLowerCase();
-    const command = commands.get(commandName) || commands.get(aliases.get(commandName));
-    if (!command) return message.reply(`⚠️ Command "${commandName}" not found.`);
+      const configCommand = command.config;
+      const roleText = roleTextToString(configCommand.role);
+      const author = configCommand.author || "Unknown";
+      const longDescription = configCommand.longDescription?.en || "No description";
+      const guideBody = configCommand.guide?.en || "No guide available.";
+      const usage = guideBody.replace(/{p}/g, prefix).replace(/{n}/g, configCommand.name);
 
-    const configCommand = command.config;
-    const roleText = roleTextToString(configCommand.role);
-    const author = configCommand.author || "Unknown";
-    const longDescription = configCommand.longDescription?.en || "No description";
-    const guideBody = configCommand.guide?.en || "No guide available.";
-    const usage = guideBody.replace(/{p}/g, prefix).replace(/{n}/g, configCommand.name);
-
-    let response = 
+      let response = 
 `✦━━━━『 𝗖𝗠𝗗 𝗜𝗡𝗙𝗢 』━━━━✦
 📌 Name: ${configCommand.name}
 📖 Description: ${longDescription}
@@ -92,15 +92,16 @@ module.exports = {
 💡 Usage: ${usage}
 ✦━━━━━━━━━━━━━━━━━━✦`;
 
-    // Attach video demo if it exists
-    if (fs.existsSync(videoPath)) {
-      return message.reply({
-        body: response,
-        attachment: fs.createReadStream(videoPath),
-      });
-    }
+      // Attach video demo if it exists
+      if (fs.existsSync(videoPath)) {
+        return message.reply({
+          body: response,
+          attachment: fs.createReadStream(videoPath),
+        });
+      }
 
-    return message.reply(response);
+      return message.reply(response);
+    }
   }
 };
 
