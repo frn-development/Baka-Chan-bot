@@ -1,23 +1,23 @@
-const fs = require("fs-extra");
+const fs = require("fs");
+const path = require("path");
 const { utils } = global;
 
 module.exports = {
   config: {
     name: "prefix",
-    version: "2.1",
+    version: "2.3",
     author: "Farhan (frnwot) ✦ styled",
     countDown: 5,
     role: 0,
-    description: "Change or check the bot's prefix in this chat or system-wide",
+    description: "Check or change the bot's prefix in this chat or system-wide",
     category: "config",
     guide: {
-      en: "   {pn} <new prefix>: change prefix in this chat"
-        + "\n   Example:"
-        + "\n    {pn} #"
-        + "\n\n   {pn} <new prefix> -g: change system-wide prefix (only bot admin)"
-        + "\n   Example:"
-        + "\n    {pn} # -g"
-        + "\n\n   {pn} reset: reset prefix in this chat to default"
+      en:
+        "{pn} <new prefix> - change prefix in this chat\n" +
+        "  Example: {pn} #\n\n" +
+        "{pn} <new prefix> -g - change system-wide prefix (bot admin only)\n" +
+        "  Example: {pn} # -g\n\n" +
+        "{pn} reset - reset prefix in this chat to default"
     }
   },
 
@@ -25,8 +25,8 @@ module.exports = {
     en: {
       reset: "🔄 Your prefix has been reset to default: %1",
       onlyAdmin: "⚠️ Only admin can change system bot prefix",
-      confirmGlobal: "🛡️ Please react to this message to confirm changing system-wide prefix",
-      confirmThisThread: "💬 Please react to this message to confirm changing prefix in this chat",
+      confirmGlobal: "🛡️ React to confirm changing system-wide prefix",
+      confirmThisThread: "💬 React to confirm changing prefix in this chat",
       successGlobal: "✅ Changed system bot prefix to: %1",
       successThisThread: "✅ Changed prefix in your chat to: %1",
       myPrefix:
@@ -50,31 +50,23 @@ module.exports = {
   },
 
   onStart: async function ({ message, role, args, commandName, event, threadsData, getLang }) {
-    if (!args[0])
-      return message.SyntaxError();
+    if (!args[0]) return message.SyntaxError();
 
-    // reset prefix
-    if (args[0] == 'reset') {
+    if (args[0].toLowerCase() === "reset") {
       await threadsData.set(event.threadID, null, "data.prefix");
       return message.reply(getLang("reset", global.GoatBot.config.prefix));
     }
 
     const newPrefix = args[0];
-    const formSet = {
-      commandName,
-      author: event.senderID,
-      newPrefix
-    };
+    const formSet = { commandName, author: event.senderID, newPrefix };
 
     if (args[1] === "-g") {
-      if (role < 2)
-        return message.reply(getLang("onlyAdmin"));
-      else
-        formSet.setGlobal = true;
+      if (role < 2) return message.reply(getLang("onlyAdmin"));
+      formSet.setGlobal = true;
     } else formSet.setGlobal = false;
 
     return message.reply(
-      args[1] === "-g" ? getLang("confirmGlobal") : getLang("confirmThisThread"),
+      formSet.setGlobal ? getLang("confirmGlobal") : getLang("confirmThisThread"),
       (err, info) => {
         formSet.messageID = info.messageID;
         global.GoatBot.onReaction.set(info.messageID, formSet);
@@ -84,8 +76,7 @@ module.exports = {
 
   onReaction: async function ({ message, threadsData, event, Reaction, getLang }) {
     const { author, newPrefix, setGlobal } = Reaction;
-    if (event.userID !== author)
-      return;
+    if (event.userID !== author) return;
 
     if (setGlobal) {
       global.GoatBot.config.prefix = newPrefix;
@@ -107,9 +98,15 @@ module.exports = {
    🤖 𝘽𝙊𝙏 𝙇𝙊𝙂𝙊
 ✦━━━━━━━━━━━━✦`;
 
-      return message.reply(
-        `${logo}\n\n${getLang("myPrefix", sysPrefix, threadPrefix)}`
-      );
+      const text = `${logo}\n\n${getLang("myPrefix", sysPrefix, threadPrefix)}`;
+
+      // Send the specific video2.mp4 from assets folder
+      const videoPath = path.join(__dirname, "../../assets/video2.mp4");
+
+      return message.reply({
+        body: text,
+        attachment: fs.createReadStream(videoPath)
+      });
     }
   }
 };
