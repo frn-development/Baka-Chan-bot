@@ -22,8 +22,8 @@ module.exports = {
     const { threadID } = event;
     const prefix = getPrefix(threadID);
 
-    // Path to the video demo
-    const videoPath = path.join(__dirname, "..", "assets", "video.mp4");
+    // Path to your video file in Baka-chan-1/assets/video.mp4
+    const videoPath = path.join(process.cwd(), "assets", "video.mp4");
 
     if (args.length === 0) {
       // Build command list
