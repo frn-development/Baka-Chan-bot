@@ -14,13 +14,16 @@ module.exports = {
     shortDescription: { en: "View command usage and list all commands directly" },
     longDescription: { en: "View command usage and list all commands directly" },
     category: "info",
-    guide: { en: "{pn} / help cmdName " },
+    guide: { en: "{pn} / help cmdName" },
     priority: 1,
   },
 
   onStart: async function ({ message, args, event, threadsData, role }) {
     const { threadID } = event;
     const prefix = getPrefix(threadID);
+
+    // Path to the video demo
+    const videoPath = path.join(__dirname, "..", "assets", "video.mp4");
 
     if (args.length === 0) {
       const categories = {};
@@ -54,18 +57,18 @@ module.exports = {
       msg += `\n│ ${doNotDelete}`;
       msg += `\n╰─────────────✦`;
 
-      // Use video.mp4 now
-      const videoPath = path.join(__dirname, "..", "assets", "video.mp4");
+      // Send the message with the video if it exists
       if (fs.existsSync(videoPath)) {
         return message.reply({
           body: msg,
-          attachment: fs.createReadStream(videoPath)
+          attachment: fs.createReadStream(videoPath),
         });
       }
 
       return message.reply(msg);
-    } 
+    }
 
+    // Show info for a specific command
     const commandName = args[0].toLowerCase();
     const command = commands.get(commandName) || commands.get(aliases.get(commandName));
     if (!command) return message.reply(`⚠️ Command "${commandName}" not found.`);
@@ -86,17 +89,17 @@ module.exports = {
 🛡️ Role: ${roleText}
 ⏱️ Cooldown: ${configCommand.countDown || 1}s
 👤 Author: ${author}
-💡 Usage: ${usage}`;
+💡 Usage: ${usage}
+✦━━━━━━━━━━━━━━━━━━✦`;
 
-    const videoPath = configCommand.video ? path.join(__dirname, "..", "assets", "video.mp4") : null;
-    if (videoPath && fs.existsSync(videoPath)) {
+    // Attach video demo if it exists
+    if (fs.existsSync(videoPath)) {
       return message.reply({
         body: response,
-        attachment: fs.createReadStream(videoPath)
+        attachment: fs.createReadStream(videoPath),
       });
     }
 
-    response += `\n✦━━━━━━━━━━━━━━━━━━✦`;
     return message.reply(response);
   }
 };
