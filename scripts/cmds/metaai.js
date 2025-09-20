@@ -13,22 +13,22 @@ module.exports = {
     if (!prompt) return message.reply("❌ Please provide a prompt to send to Meta AI!");
 
     try {
-      // Replace 'META_AI_ID' with the official Meta AI account ID
+      // Meta AI official account ID (replace with the correct one)
       const metaAIID = "META_AI_ID";
 
-      // Send a message mentioning Meta AI with your prompt
+      // Send message mentioning Meta AI with exact space
       await api.sendMessage(
         {
-          body: `@MetaAI ${prompt}`,
+          body: `@Meta AI ${prompt}`,
           mentions: [{
-            tag: "MetaAI",
+            tag: "Meta AI",
             id: metaAIID
           }]
         },
         event.threadID
       );
 
-      message.reply("✅ Prompt sent to Meta AI!");
+      message.reply("✅ Prompt sent to Meta AI! It should respond automatically.");
     } catch (err) {
       console.error(err);
       message.reply("❌ Failed to send prompt to Meta AI. Try again.");
