@@ -5,80 +5,94 @@ const path = require("path");
 module.exports = {
   config: {
     name: "edit",
+    aliases: [],
+    version: "1.0.1",
+    permission: 0,
     author: "frnwot",
+    description: "AI image editing using prompt + image or attachment",
+    guide: "[message]",
+    prefix: true,
     category: "image",
-    countDown: 5,
     role: 0,
-    guide: { en: "edit <prompt> | reply to image or provide link" }
+    usages: "edit <prompt> | reply image or link",
+    cooldowns: 5,
+    dependencies: { axios: "" }
   },
 
-  onStart: async function({ message, event, args }) {
-    const prompt = args.join(" ").split("|")[0]?.trim();
+  onStart: async ({ api, event, args }) => {
     let imageUrl = event.messageReply?.attachments?.[0]?.url || null;
+    const prompt = args.join(" ").split("|")[0]?.trim();
 
-    // If URL provided after pipe
+    // URL after pipe
     if (!imageUrl && args.length > 1) {
       imageUrl = args.join(" ").split("|")[1]?.trim();
     }
 
-    // Validate prompt and image
-    if (!prompt) return message.reply("❌ Please provide a prompt!");
-    if (!imageUrl) return message.reply("❌ Please reply to an image or provide a link!");
+    if (!imageUrl || !prompt) {
+      return api.sendMessage(
+        `📸 𝗘𝗗𝗜𝗧•\n━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `⛔️ You must provide both a prompt and an image!\n\n` +
+        `✨ Example:\n▶️ edit add cute girlfriend |\n\n` +
+        `🖼️ Or reply to an image:\n▶️ edit add cute girlfriend`,
+        event.threadID,
+        event.messageID
+      );
+    }
 
     imageUrl = imageUrl.trim();
     if (!/^https?:\/\//.test(imageUrl)) {
-      return message.reply("⚠️ Invalid image URL! Must start with http:// or https://");
+      return api.sendMessage(
+        `⚠️ Invalid image URL! Must start with http:// or https://`,
+        event.threadID,
+        event.messageID
+      );
     }
 
-    // Build API URL
-    if (!global.imranapi?.imran) {
-      return message.reply("❌ AI API is not configured. Please set global.imranapi.imran");
+    if (!global.imranapi || !global.imranapi.imran) {
+      return api.sendMessage(
+        "❌ AI API is not configured. Please set `global.imranapi.imran`",
+        event.threadID,
+        event.messageID
+      );
     }
+
+    // Build API URL correctly
     const apiUrl = `${global.imranapi.imran}/api/editimg?prompt=${encodeURIComponent(prompt)}&image=${encodeURIComponent(imageUrl)}`;
 
-    // React with waiting emoji
-    message.reaction("⏳", event.messageID);
+    const waitMsg = await api.sendMessage("⏳ Please wait, editing image...", event.threadID);
 
     try {
-      // Prepare temp cache
       const cacheDir = path.join(__dirname, "cache");
       if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
       const tempPath = path.join(cacheDir, `edited_${event.senderID}.jpg`);
 
-      // Fetch the edited image
-      const response = await axios({
-        method: "GET",
-        url: apiUrl,
-        responseType: "stream",
-        validateStatus: status => status < 500 // Treat 4xx as errors we can handle
-      });
-
-      // Check if response is actually an image
-      const contentType = response.headers["content-type"];
-      if (!contentType || !contentType.startsWith("image")) {
-        return message.reply("❌ Failed to generate image. API did not return an image.");
-      }
-
-      // Save image
+      const response = await axios.get(apiUrl, { responseType: "stream" });
       const writer = fs.createWriteStream(tempPath);
       response.data.pipe(writer);
 
       writer.on("finish", async () => {
-        await message.reply({
-          body: `✅ Image edited successfully!\n🔍 Prompt: "${prompt}"`,
-          attachment: fs.createReadStream(tempPath)
-        });
-        fs.unlinkSync(tempPath); // remove temp file
+        await api.sendMessage(
+          {
+            body: `✅ Image edited successfully!\n🔍 Prompt: "${prompt}"\n\n@Meta AI`,
+            attachment: fs.createReadStream(tempPath)
+          },
+          event.threadID,
+          () => {
+            fs.unlinkSync(tempPath);
+            api.unsendMessage(waitMsg.messageID);
+          },
+          event.messageID
+        );
       });
 
       writer.on("error", (err) => {
         console.error(err);
-        message.reply("❌ Failed to save the image file.");
+        api.sendMessage("❌ Failed to save the image file.", event.threadID, event.messageID);
       });
 
     } catch (error) {
       console.error(error);
-      message.reply("❌ Failed to generate image. Try again later.");
+      api.sendMessage(`❌ Failed to generate image. Error: ${error.message}`, event.threadID, event.messageID);
     }
   }
 };
