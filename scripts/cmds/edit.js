@@ -2,84 +2,113 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
-module.exports = {
-  config: {
-    name: "edit",
-    author: "frnwot",
-    category: "image",
-    countDown: 5,
-    role: 0,
-    guide: { en: "edit <prompt> | reply to image or provide link" }
-  },
+module.exports.config = {
+  name: "edit",
+  aliases: [],
+  version: "1.0.0",
+  permission: 0,
+  author: "Khan Rahul RK && frn",
+  description: "AI image editing using prompt + image or attachment",
+ guide: "[message]",
+  prefix: true,
+  category: "image",
+role: 0,
+  usages: "editimg [prompt] + reply image or link",
+  cooldowns: 5,
+  dependencies: { axios: "" }
+};
 
-  onStart: async function({ message, event, args }) {
-    const prompt = args.join(" ").split("|")[0]?.trim();
-    let imageUrl = event.messageReply?.attachments?.[0]?.url || null;
+module.exports.onStart = async ({ api, event, args }) => {
+  let linkanh = event.messageReply?.attachments?.[0]?.url || null;
+  const prompt = args.join(" ").split("|")[0]?.trim();
 
-    // If URL provided after pipe
-    if (!imageUrl && args.length > 1) {
-      imageUrl = args.join(" ").split("|")[1]?.trim();
-    }
+  // if link provided after the pipe
+  if (!linkanh && args.length > 1) {
+    linkanh = args.join(" ").split("|")[1]?.trim();
+  }
 
-    // Validate prompt and image
-    if (!imageUrl || !prompt) {
-      return message.reply(
-        `📸 𝗘𝗗𝗜𝗧•\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `⛔️ You must provide both a prompt and an image!\n\n` +
-        `✨ Example:\n` +
-        `▶️ edit add cute girlfriend |\n\n` +
-        `🖼️ Or reply to an image:\n` +
-        `▶️ edit add cute girlfriend`
-      );
-    }
+  // graceful usage notice
+  if (!linkanh || !prompt) {
+    return api.sendMessage(
+      `📸 𝙀𝘿𝙄𝙏•\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `⛔️ 𝙔𝙤𝙪 𝙢𝙪𝙨𝙩 𝙜𝙞𝙫𝙚 𝙗𝙤𝙩𝙝 𝙖 𝙥𝙧𝙤𝙢𝙥𝙩 𝙖𝙣𝙙 𝙖𝙣 𝙞𝙢𝙖𝙜𝙚!\n\n` +
+      `✨ 𝑬𝒙𝒂𝒎𝒑𝒍𝒆:\n` +
+      `▶️ edit add cute girlfriend |\n\n` +
+      `🖼️ 𝑶𝒓 𝑹𝒆𝒑𝒍𝒚 𝒕𝒐 𝒂𝒏 𝒊𝒎𝒂𝒈𝒆:\n` +
+      `▶️ edit add cute girlfriend`,
+      event.threadID,
+      event.messageID
+    );
+  }
 
-    imageUrl = imageUrl.replace(/\s/g, "");
-    if (!/^https?:\/\//.test(imageUrl)) {
-      return message.reply(
-        `⚠️ Invalid image URL! Must start with http:// or https://`
-      );
-    }
+  linkanh = linkanh.replace(/\s/g, "");
+  if (!/^https?:\/\//.test(linkanh)) {
+    return api.sendMessage(
+      `⚠️ 𝙄𝙣𝙫𝙖𝙡𝙞𝙙 𝙞𝙢𝙖𝙜𝙚 𝙐𝙍𝙇!\n` +
+      `🔗 𝙈𝙪𝙨𝙩 𝙨𝙩𝙖𝙧𝙩 𝙬𝙞𝙩𝙝 http:// 𝙤𝙧 https://`,
+      event.threadID,
+      event.messageID
+    );
+  }
 
-    // Build API URL
-    const apiUrl = `${global.imranapi.imran}/api/editimg?prompt=${encodeURIComponent(
-      prompt
-    )}&image=${encodeURIComponent(imageUrl)}`;
+  const apiUrl = `{global.imranapi.imran}/api/editimg?prompt=${encodeURIComponent(
+    prompt
+  )}&image=${encodeURIComponent(linkanh)}`;
 
-    // React with waiting emoji
-    message.reaction("⏳", event.messageID);
+  // Send waiting message
+  const waitMsg = await api.sendMessage(
+    `⏳ 𝗣𝗹𝗲𝗮𝘀𝗲 𝗪𝗮𝗶𝘁 ..`,
+    event.threadID
+  );
 
-    try {
-      // Prepare temp cache
-      const cacheDir = path.join(__dirname, "cache");
-      if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-      const tempPath = path.join(cacheDir, `edited_${event.senderID}.jpg`);
+  try {
+    const tempPath = path.join(
+      __dirname,
+      "cache",
+      `edited_${event.senderID}.jpg`
+    );
+    const response = await axios({
+      method: "GET",
+      url: apiUrl,
+      responseType: "stream"
+    });
 
-      const response = await axios({
-        method: "GET",
-        url: apiUrl,
-        responseType: "stream"
-      });
+    const writer = fs.createWriteStream(tempPath);
+    response.data.pipe(writer);
 
-      const writer = fs.createWriteStream(tempPath);
-      response.data.pipe(writer);
-
-      writer.on("finish", async () => {
-        await message.reply({
-          body: `✅ Image edited successfully!\n🔍 Prompt: "${prompt}"`,
+    writer.on("finish", () => {
+      api.sendMessage(
+        {
+          body:
+            `🔍 𝙋𝙧𝙤𝙢𝙥𝙩: “${prompt}”\n` +
+            `🖼️ 𝘼𝙄 𝘼𝙧𝙩 𝙞𝙨 𝙧𝙚𝙖𝙙𝙮! ✨`,
           attachment: fs.createReadStream(tempPath)
-        });
-        fs.unlinkSync(tempPath); // remove temp file
-      });
+        },
+        event.threadID,
+        () => {
+          fs.unlinkSync(tempPath);
+          // Delete waiting message
+          api.unsendMessage(waitMsg.messageID);
+        },
+        event.messageID
+      );
+    });
 
-      writer.on("error", (err) => {
-        console.error(err);
-        message.reply("❌ Failed to save the image file.");
-      });
-
-    } catch (error) {
-      console.error(error);
-      message.reply("❌ Failed to generate image. Try again later.");
-    }
+    writer.on("error", (err) => {
+      console.error(err);
+      api.sendMessage(
+        "❌ 𝙁𝙖𝙞𝙡𝙚𝙙 𝙩𝙤 𝙨𝙖𝙫𝙚 𝙩𝙝𝙚 𝙞𝙢𝙖𝙜𝙚 𝙛𝙞𝙡𝙚.",
+        event.threadID,
+        event.messageID
+      );
+    });
+  } catch (error) {
+    console.error(error);
+    return api.sendMessage(
+      "❌ 𝙁𝙖𝙞𝙡𝙚𝙙 𝙩𝙤 𝙜𝙚𝙣𝙚𝙧𝙖𝙩𝙚 𝙞𝙢𝙖𝙜𝙚. 𝙏𝙧𝙮 𝙖𝙜𝙖𝙞𝙣 𝙡𝙖𝙩𝙚𝙧.",
+      event.threadID,
+      event.messageID
+    );
   }
 };
