@@ -3,7 +3,7 @@ module.exports = {
     name: "set",
     aliases: ['ap'],
     version: "1.0",
-    author: "Samir B. Thakuri",
+    author: "based",
     role: 2,
     description: {
       en: "Set coins and experience points for a user"
