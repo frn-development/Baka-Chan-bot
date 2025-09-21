@@ -4,30 +4,32 @@ module.exports = {
   config: {
     name: "edit1",
     author: "frnwot",
-    category: "ai",
-    version: "2.0",
+    category: "media",
     countDown: 5,
     role: 0,
-    guide: { en: "edit1 <question>" }
+    guide: { en: "edit1 <prompt>" }
   },
 
-  onStart: async function ({ message, event, args }) {
+  onStart: async function({ message, event, args }) {
     const prompt = args.join(" ");
-    if (!prompt) return message.reply("❌ | Please provide a question.");
+    if (!prompt) {
+      return message.reply("❌ | provide a prompt");
+    }
 
-    await message.reaction("⏳", event.messageID);
+    message.reaction("⏳", event.messageID);
 
     try {
       let url = `https://aryan-nix-apis.vercel.app/api/gemini?prompt=${encodeURIComponent(prompt)}`;
       const res = await axios.get(url);
-      const reply = res.data?.response || "❌ | No response received.";
 
-      await message.reaction("✅", event.messageID);
-      return message.reply(reply);
+      await message.reply({
+        body: res.data?.response || "❌ | No response received."
+      });
+
+      message.reaction("✅", event.messageID);
     } catch (error) {
-      console.error("Gemini CMD ERROR:", error);
-      await message.reaction("❌", event.messageID);
-      return message.reply("❌ | Something went wrong while contacting Gemini AI.");
+      message.reaction("❌", event.messageID);
+      message.reply("❌ | " + error.message);
     }
   }
 };
