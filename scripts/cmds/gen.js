@@ -2,9 +2,15 @@ const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 
+const CACHE_DIR = path.join(__dirname, "cache");
+if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR);
+
+const AI_MODELS = ["Fantasy", "Flux Beta", "Flux V3", "Pollinations", "Weigen"];
+const API_URL = "https://aima-zero.vercel.app/api";
+
 module.exports = {
   config: {
-    name: "gen",
+    name: "ai",
     version: "2.0",
     author: "Farhan & Hridoy",
     countDown: 8,
@@ -12,8 +18,9 @@ module.exports = {
     groupAdminOnly: false,
     description: "Generate AI images from text using aima-zero API",
     category: "media",
+    commands: ["gen", "imagine", "create"],
     guide: {
-      en: "{pn} <prompt>"
+      en: "{pn} <prompt> | Example: {pn} a futuristic city at sunset"
     }
   },
 
@@ -31,40 +38,33 @@ module.exports = {
   },
 
   onStart: async ({ api, event, args, getLang }) => {
-    if (!args[0]) {
-      return api.sendMessage(getLang("missingPrompt"), event.threadID);
-    }
+    if (!args[0]) return api.sendMessage(getLang("missingPrompt"), event.threadID);
 
     const prompt = args.join(" ");
-    const apiUrl = `https://aima-zero.vercel.app/api?prompt=${encodeURIComponent(prompt)}`;
-
-    const cacheDir = path.join(__dirname, "cache");
-    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-
-    const imagePath = path.join(cacheDir, `gen_${event.senderID}_${Date.now()}.png`);
-
+    const imagePath = path.join(CACHE_DIR, `gen_${event.senderID}_${Date.now()}.png`);
     let msgSend;
+
     try {
-      // Notify user that image generation started
+      // Notify user
       msgSend = await api.sendMessage(getLang("processing"), event.threadID);
 
-      // Call API
-      const response = await axios.get(apiUrl, { responseType: "json" });
+      // Call AI API
+      const response = await axios.get(`${API_URL}?prompt=${encodeURIComponent(prompt)}`, { responseType: "json" });
 
-      if (!response.data || !response.data.status || !response.data.result) {
+      if (!response.data?.status || !response.data?.result) {
         await api.sendMessage(getLang("error"), event.threadID);
         if (msgSend) await api.unsendMessage(msgSend.messageID);
         return;
       }
 
-      // Download the image
+      // Download the generated image
       const imageResponse = await axios.get(response.data.result, { responseType: "arraybuffer" });
       fs.writeFileSync(imagePath, Buffer.from(imageResponse.data, "binary"));
 
       // Send the image
       await api.sendMessage(
         {
-          body: `✨ Image generated for prompt: "${prompt}"`,
+          body: `✨ Image generated for prompt: "${prompt}"\n🌐 Model: ${response.data.model || "Unknown"}\n💡 Available Models: ${AI_MODELS.join(", ")}`,
           attachment: fs.createReadStream(imagePath)
         },
         event.threadID
@@ -73,6 +73,7 @@ module.exports = {
       // Cleanup
       if (msgSend) await api.unsendMessage(msgSend.messageID);
       fs.unlinkSync(imagePath);
+
     } catch (error) {
       console.error("Error generating AI image:", error);
       await api.sendMessage(getLang("error"), event.threadID);
