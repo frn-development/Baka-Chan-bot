@@ -5,9 +5,11 @@ const config = {
   version: "2.0",
   permissions: 0,
   credits: "frnwot",
+  prefix: true,
   description: "Ask anything to Gemini AI",
   commandCategory: "ai",
   usages: "[question]",
+  role: 0,
   cooldown: 5
 };
 
