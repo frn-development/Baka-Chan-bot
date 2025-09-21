@@ -39,28 +39,29 @@ module.exports = {
     const apiUrl = `https://aima-zero.vercel.app/api?prompt=${encodeURIComponent(prompt)}`;
 
     const cacheDir = path.join(__dirname, "cache");
+    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+
     const imagePath = path.join(cacheDir, `gen_${event.senderID}_${Date.now()}.png`);
 
+    let msgSend;
     try {
-      if (!fs.existsSync(cacheDir)) {
-        fs.mkdirSync(cacheDir);
-      }
-
-      const msgSend = await api.sendMessage(getLang("processing"), event.threadID);
+      // Notify user that image generation started
+      msgSend = await api.sendMessage(getLang("processing"), event.threadID);
 
       // Call API
       const response = await axios.get(apiUrl, { responseType: "json" });
 
-      if (!response.data.status || !response.data.result) {
+      if (!response.data || !response.data.status || !response.data.result) {
         await api.sendMessage(getLang("error"), event.threadID);
-        return api.unsendMessage(msgSend.messageID);
+        if (msgSend) await api.unsendMessage(msgSend.messageID);
+        return;
       }
 
-      // Download generated image
+      // Download the image
       const imageResponse = await axios.get(response.data.result, { responseType: "arraybuffer" });
       fs.writeFileSync(imagePath, Buffer.from(imageResponse.data, "binary"));
 
-      // Send image
+      // Send the image
       await api.sendMessage(
         {
           body: `✨ Image generated for prompt: "${prompt}"`,
@@ -69,13 +70,14 @@ module.exports = {
         event.threadID
       );
 
-      await api.unsendMessage(msgSend.messageID);
+      // Cleanup
+      if (msgSend) await api.unsendMessage(msgSend.messageID);
       fs.unlinkSync(imagePath);
     } catch (error) {
       console.error("Error generating AI image:", error);
       await api.sendMessage(getLang("error"), event.threadID);
       if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+      if (msgSend) await api.unsendMessage(msgSend.messageID);
     }
   }
 };
-      
