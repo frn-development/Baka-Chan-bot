@@ -1,22 +1,25 @@
 const axios = require('axios');
+
 module.exports = {
-config: {
-	name: "edit1",
-	author: "frnwot",
-	category: "media",
-	countDown: 5,
-	role: 0,
-	guide: { en: "edit <prompt> | reply to image"
+  config: {
+    name: "edit1",
+    author: "frnwot",
+    category: "ai",
+    version: "2.0",
+    countDown: 5,
+    role: 0,
+    guide: { en: "edit1 <question>" }
   },
 
   onStart: async function ({ message, event, args }) {
-    const text = args.join(" ");
-    if (!text) return message.reply("❌ | Please provide a question.");
+    const prompt = args.join(" ");
+    if (!prompt) return message.reply("❌ | Please provide a question.");
 
     await message.reaction("⏳", event.messageID);
 
     try {
-      const res = await axios.get(`https://aryan-nix-apis.vercel.app/api/gemini?prompt=${encodeURIComponent(text)}`);
+      let url = `https://aryan-nix-apis.vercel.app/api/gemini?prompt=${encodeURIComponent(prompt)}`;
+      const res = await axios.get(url);
       const reply = res.data?.response || "❌ | No response received.";
 
       await message.reaction("✅", event.messageID);
