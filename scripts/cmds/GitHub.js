@@ -1,8 +1,8 @@
 const axios = require('axios');
 const fs = require('fs');
-const path = require('path');
 const fsExtra = require('fs-extra');
-const config = require('../../config/config.json');
+const path = require('path');
+const config = require('../../config/config.dev.json'); // fixed path
 
 module.exports = {
   config: {
@@ -51,7 +51,7 @@ module.exports = {
       await fsExtra.writeFile(tempFilePath, imageResponse.data);
 
       const userDetails = [
-        `╔═━─[ ${config.bot.botName} GITHUB USER ]─━═╗`,
+        `╔═━─[ ${config.nickNameBot} GITHUB USER ]─━═╗`,
         `┃ Username: ${userData.login}`,
         `┃ Bio: ${userData.bio || 'Not set'}`,
         `┃ Followers: ${userData.followers}`,
