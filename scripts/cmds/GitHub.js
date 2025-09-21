@@ -1,54 +1,51 @@
-const axios = require('axios');
 const fs = require('fs');
-const fsExtra = require('fs-extra');
 const path = require('path');
-const config = require('../../config/config.dev.json'); // fixed path
+const axios = require('axios');
+const fsExtra = require('fs-extra');
+const config = require('../../config/config.dev.json'); // your config file
 
 module.exports = {
   config: {
-    name: "github",
-    version: "1.0.1",
-    author: "frnwot",
-    description: "Fetches GitHub user details for a given username.",
-    category: "media",
-    guide: "{pn}github <username>",
-    cooldowns: 5,
+    name: 'GitHub', // renamed command
+    version: '1.0.3',
+    author: 'frnwot',
+    countDown: 5,
     prefix: true,
-    adminOnly: false,
+    groupAdminOnly: false,
+    description: 'Fetches GitHub user details for a given username.',
+    category: 'media',
+    guide: '{pn}GitHub <username>'
   },
-
   langs: {
     en: {
-      missingUsername: "⚠️ Please provide a GitHub username. Usage: {pn}github <username>",
-      userNotFound: "❌ Failed to fetch GitHub user details. User not found or API error.",
-      fetching: "⏳ Fetching GitHub user details..."
+      missingUsername: '⚠️ Please provide a GitHub username. Usage: {pn}GitHub <username>',
+      userNotFound: '❌ Failed to fetch GitHub user details. User not found or API error.',
+      fetching: '⏳ Fetching GitHub user details...'
     }
   },
-
   onStart: async ({ api, event, args, getLang }) => {
-    if (!args[0]) return api.sendMessage(getLang("missingUsername"), event.threadID);
+    if (!args[0]) return api.sendMessage(getLang('missingUsername'), event.threadID);
 
     const username = args[0];
     const githubApiUrl = `https://api.github.com/users/${username}`;
-
-    const waitMsg = await api.sendMessage(getLang("fetching"), event.threadID);
+    const tempDir = path.join(__dirname, '../../temp');
+    const tempFilePath = path.join(tempDir, `github_${username}.png`);
 
     try {
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+      const waitMsg = await api.sendMessage(getLang('fetching'), event.threadID);
+
       const response = await axios.get(githubApiUrl);
       const userData = response.data;
 
       if (!userData || !userData.login) {
         await api.unsendMessage(waitMsg.messageID);
-        return api.sendMessage(getLang("userNotFound"), event.threadID);
+        return api.sendMessage(getLang('userNotFound'), event.threadID);
       }
 
-      const profilePicUrl = userData.avatar_url;
-      const tempDir = path.join(__dirname, '../../temp');
-      await fsExtra.ensureDir(tempDir);
-      const tempFilePath = path.join(tempDir, `github_${username}.png`);
-
-      const imageResponse = await axios.get(profilePicUrl, { responseType: 'arraybuffer' });
-      await fsExtra.writeFile(tempFilePath, imageResponse.data);
+      const imageResponse = await axios.get(userData.avatar_url, { responseType: 'arraybuffer' });
+      fs.writeFileSync(tempFilePath, Buffer.from(imageResponse.data, 'binary'));
 
       const userDetails = [
         `╔═━─[ ${config.nickNameBot} GITHUB USER ]─━═╗`,
@@ -66,16 +63,16 @@ module.exports = {
           body: userDetails,
           attachment: fs.createReadStream(tempFilePath)
         },
-        event.threadID,
-        () => {
-          fsExtra.unlink(tempFilePath);
-          api.unsendMessage(waitMsg.messageID);
-        }
+        event.threadID
       );
+
+      await api.unsendMessage(waitMsg.messageID);
+      fs.unlinkSync(tempFilePath);
+
     } catch (error) {
-      console.error(error);
-      await api.sendMessage(getLang("userNotFound"), event.threadID);
-      if (waitMsg?.messageID) await api.unsendMessage(waitMsg.messageID);
+      console.error('Error fetching GitHub user:', error);
+      await api.sendMessage(getLang('userNotFound'), event.threadID);
+      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
     }
   }
 };
