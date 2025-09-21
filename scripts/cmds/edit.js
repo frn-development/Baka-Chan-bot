@@ -1,6 +1,6 @@
-const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
+const axios = require("axios");
 
 module.exports = {
   config: {
@@ -19,7 +19,18 @@ module.exports = {
     dependencies: { axios: "" }
   },
 
-  onStart: async ({ api, event, args }) => {
+  langs: {
+    en: {
+      missingInput: "⛔️ You must provide both a prompt and an image!",
+      invalidUrl: "⚠️ Invalid image URL! Must start with http:// or https://",
+      noApi: "❌ AI API is not configured. Please set `global.imranapi.imran`",
+      processing: "⏳ Please wait, editing image...",
+      success: "✅ Image edited successfully!\n🔍 Prompt: \"{prompt}\"\n\n@Meta AI",
+      fail: "❌ Failed to generate image. Error: {error}"
+    }
+  },
+
+  onStart: async ({ api, event, args, getLang }) => {
     let imageUrl = event.messageReply?.attachments?.[0]?.url || null;
     const prompt = args.join(" ").split("|")[0]?.trim();
 
@@ -30,10 +41,7 @@ module.exports = {
 
     if (!imageUrl || !prompt) {
       return api.sendMessage(
-        `📸 𝗘𝗗𝗜𝗧•\n━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `⛔️ You must provide both a prompt and an image!\n\n` +
-        `✨ Example:\n▶️ edit add cute girlfriend |\n\n` +
-        `🖼️ Or reply to an image:\n▶️ edit add cute girlfriend`,
+        `📸 𝗘𝗗𝗜𝗧•\n━━━━━━━━━━━━━━━━━━━━━━\n${getLang("missingInput")}\n\n✨ Example:\n▶️ edit add cute girlfriend |\n\n🖼️ Or reply to an image:\n▶️ edit add cute girlfriend`,
         event.threadID,
         event.messageID
       );
@@ -41,45 +49,39 @@ module.exports = {
 
     imageUrl = imageUrl.trim();
     if (!/^https?:\/\//.test(imageUrl)) {
-      return api.sendMessage(
-        `⚠️ Invalid image URL! Must start with http:// or https://`,
-        event.threadID,
-        event.messageID
-      );
+      return api.sendMessage(getLang("invalidUrl"), event.threadID, event.messageID);
     }
 
     if (!global.imranapi || !global.imranapi.imran) {
-      return api.sendMessage(
-        "❌ AI API is not configured. Please set `global.imranapi.imran`",
-        event.threadID,
-        event.messageID
-      );
+      return api.sendMessage(getLang("noApi"), event.threadID, event.messageID);
     }
 
-    // Build API URL correctly
+    // Build API URL
     const apiUrl = `${global.imranapi.imran}/api/editimg?prompt=${encodeURIComponent(prompt)}&image=${encodeURIComponent(imageUrl)}`;
 
-    const waitMsg = await api.sendMessage("⏳ Please wait, editing image...", event.threadID);
+    const waitMsg = await api.sendMessage(getLang("processing"), event.threadID);
 
     try {
       const cacheDir = path.join(__dirname, "cache");
       if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-      const tempPath = path.join(cacheDir, `edited_${event.senderID}.jpg`);
+
+      const tempPath = path.join(cacheDir, `edited_${event.senderID}_${Date.now()}.jpg`);
 
       const response = await axios.get(apiUrl, { responseType: "stream" });
       const writer = fs.createWriteStream(tempPath);
+
       response.data.pipe(writer);
 
       writer.on("finish", async () => {
         await api.sendMessage(
           {
-            body: `✅ Image edited successfully!\n🔍 Prompt: "${prompt}"\n\n@Meta AI`,
+            body: getLang("success").replace("{prompt}", prompt),
             attachment: fs.createReadStream(tempPath)
           },
           event.threadID,
-          () => {
+          async () => {
             fs.unlinkSync(tempPath);
-            api.unsendMessage(waitMsg.messageID);
+            if (waitMsg) await api.unsendMessage(waitMsg.messageID);
           },
           event.messageID
         );
@@ -89,10 +91,10 @@ module.exports = {
         console.error(err);
         api.sendMessage("❌ Failed to save the image file.", event.threadID, event.messageID);
       });
-
     } catch (error) {
       console.error(error);
-      api.sendMessage(`❌ Failed to generate image. Error: ${error.message}`, event.threadID, event.messageID);
+      await api.sendMessage(getLang("fail").replace("{error}", error.message), event.threadID, event.messageID);
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
     }
   }
 };
