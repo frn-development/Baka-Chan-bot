@@ -2,19 +2,27 @@ const fs = require("fs");
 const path = require("path");
 const { getPrefix } = global.utils;
 const { commands, aliases } = global.GoatBot;
-const doNotDelete = "[⛓️ | baka-chan]"; // decoy
+
+const doNotDelete = "✦ BAKA-CHAN ✦"; // decoy
+const taglines = [
+  " Power up your group with Baka-chan!",
+  " Commands forged for legends only!",
+  " Built for speed, made for you.",
+  " Your bot, your power, your rules!",
+  " Explore. Command. Conquer."
+];
 
 module.exports = {
   config: {
     name: "help",
-    version: "1.18",
-    author: "NTKhang & MD Tawsif & Farhan",
+    version: "2.0",
+    author: "NTKhang • MD Tawsif • Farhan",
     countDown: 5,
     role: 0,
-    shortDescription: { en: "View command usage and list all commands directly" },
-    longDescription: { en: "View command usage and list all commands directly" },
+    shortDescription: { en: "View all commands or details about one" },
+    longDescription: { en: "Browse the full list of commands or check detailed usage for a specific one." },
     category: "info",
-    guide: { en: "{pn} / help cmdName" },
+    guide: { en: "{pn} / help <cmdName>" },
     priority: 1,
   },
 
@@ -22,13 +30,18 @@ module.exports = {
     const { threadID } = event;
     const prefix = getPrefix(threadID);
 
-    // Path to your video file in Baka-chan-1/assets/video.mp4
     const videoPath = path.join(process.cwd(), "assets", "video.mp4");
+    const tagline = taglines[Math.floor(Math.random() * taglines.length)];
 
     if (args.length === 0) {
       // Build command list
       const categories = {};
-      let msg = `✦━━━━『 𝗖𝗠𝗗 𝗟𝗜𝗦𝗧 』━━━━✦\n`;
+      let msg = `
+✦━━━━━━━━━━━━━━━━━━━━✦
+     𝗕𝗔𝗞𝗔-𝗖𝗛𝗔𝗡 𝗕𝗢𝗧 
+✦━━━━━━━━━━━━━━━━━━━━✦
+${tagline}
+`;
 
       for (const [name, value] of commands) {
         if (value.config.role > 1 && role < value.config.role) continue;
@@ -39,34 +52,35 @@ module.exports = {
 
       Object.keys(categories).forEach((category) => {
         if (category !== "info") {
-          msg += `\n╭─✦ ${category.toUpperCase()}`;
+          msg += `\n╭── ✦ ${category.toUpperCase()} ✦ ──╮`;
           const names = categories[category].commands.sort();
           for (let i = 0; i < names.length; i += 3) {
             const cmds = names.slice(i, i + 3).map((item) => `✧ ${item}`);
             msg += `\n│ ${cmds.join("   ")}`;
           }
-          msg += `\n╰─────────────✦`;
+          msg += `\n╰───────────────────╯\n`;
         }
       });
 
       const totalCommands = commands.size;
-      msg += `\n\n╭─✦ BOT INFO`;
-      msg += `\n│ 📜 Total Cmds: ${totalCommands}`;
-      msg += `\n│ 💡 Usage: ${prefix}help <cmd name>`;
-      msg += `\n│ 👑 Owner: frnwot (Farhan)`;
-      msg += `\n│ 🌐 Profile: https://www.facebook.com/share/1BMmLwy1JY/`;
-      msg += `\n│ ${doNotDelete}`;
-      msg += `\n╰─────────────✦`;
+      msg += `
+╭── ✦ BOT INFO ✦ ──╮
+│ 📜 Total Cmds: ${totalCommands}
+│ 💡 Usage: ${prefix}help <cmd>
+│ 👑 Owner: Farhan (frnwot)
+│ 🌐 Profile: fb.com/share/1BMmLwy1JY/
+│ ${doNotDelete}
+╰───────────────────╯
+`;
 
-      // Send the message with the video if it exists
       if (fs.existsSync(videoPath)) {
         return message.reply({
           body: msg,
           attachment: fs.createReadStream(videoPath),
         });
       }
-
       return message.reply(msg);
+
     } else {
       // Show info for a specific command
       const commandName = args[0].toLowerCase();
@@ -80,8 +94,11 @@ module.exports = {
       const guideBody = configCommand.guide?.en || "No guide available.";
       const usage = guideBody.replace(/{p}/g, prefix).replace(/{n}/g, configCommand.name);
 
-      let response = 
-`✦━━━━『 𝗖𝗠𝗗 𝗜𝗡𝗙𝗢 』━━━━✦
+      let response = `
+✦━━━━━━━━━━━━━━━━━━━━✦
+     𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗜𝗡𝗙𝗢 
+✦━━━━━━━━━━━━━━━━━━━━✦
+
 📌 Name: ${configCommand.name}
 📖 Description: ${longDescription}
 📂 Aliases: ${configCommand.aliases ? configCommand.aliases.join(", ") : "None"}
@@ -90,16 +107,16 @@ module.exports = {
 ⏱️ Cooldown: ${configCommand.countDown || 1}s
 👤 Author: ${author}
 💡 Usage: ${usage}
-✦━━━━━━━━━━━━━━━━━━✦`;
 
-      // Attach video demo if it exists
+✦━━━━━━━━━━━━━━━━━━━━✦
+`;
+
       if (fs.existsSync(videoPath)) {
         return message.reply({
           body: response,
           attachment: fs.createReadStream(videoPath),
         });
       }
-
       return message.reply(response);
     }
   }
