@@ -5,7 +5,7 @@ module.exports = {
     name: "shell",
     aliases: ['$','>'],
     version: "1.0",
-    author: "Samir",
+    author: "based",
     countDown: 5,
     role: 2,
     shortDescription: "Execute shell commands",
