@@ -1,5 +1,5 @@
 // set bash title
-process.stdout.write("]2;Goat Bot V2 - Made by NTKhang");
+process.stdout.write("\x1b]2;Goat Bot V2 - Made by NTKhang\x1b\x5c");
 const defaultRequire = require;
 
 function decode(text) {
@@ -80,7 +80,7 @@ const titles = [
 		"G O A T B O T  V 2 @" + currentVersion
 	],
 	[
-		"Baka-chan"
+		"GOATBOT V2"
 	]
 ];
 const maxWidth = process.stdout.columns;
@@ -629,4 +629,4 @@ async function startBot(loginWithEmail) {
 	const tooOldVersion = (await axios.get("https://raw.githubusercontent.com/ntkhang03/Goat-Bot-V2-Storage/main/tooOldVersions.txt")).data || "0.0.0";
 	// nếu version cũ hơn
 	if ([-1, 0].includes(compareVersion(currentVersion, tooOldVersion))) {
-		log.err("VERSION", getText('version', 'tooOldVersion', colors.yellowBright('node update')
+		log.err("VERSION", getText('version', 'tooOldVersion', colors.yellowBright('nod
