@@ -1,54 +1,66 @@
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 
 module.exports = {
-  config: {
-    name: "nano",
-    author: "Farhan",
-    category: "media",
-    countDown: 5,
-    role: 0,
-    guide: { en: "nano <prompt> | reply to image OR nano <image_url> <prompt>" }
-  },
+    config: {
+        name: 'nano',
+        version: '1.1',
+        author: 'Farhan',
+        countDown: 10,
+        prefix: true,
+        groupAdminOnly: false,
+        description: 'Edit or enhance any photo using Gemini Nano Banana API.',
+        category: 'fun',
+        guide: {
+            en: '{pn}nano [prompt] | reply to an image or provide image URL'
+        },
+    },
+    onStart: async ({ api, event, args }) => {
+        const { senderID, messageReply } = event;
+        let imageUrl = null;
+        const prompt = args.join(" ");
 
-  onStart: async function({ message, event, args }) {
-    let imageUrl = null;
-    let prompt = null;
+        // 1️⃣ Case: Reply to a Messenger image
+        if (messageReply && messageReply.attachments?.[0]?.url) {
+            imageUrl = messageReply.attachments[0].url;
+        }
 
-    // Case 1: Reply to an image
-    if (event.messageReply && event.messageReply.attachments?.[0]?.url) {
-      imageUrl = event.messageReply.attachments[0].url;
-      prompt = args.join(" ");
-    } else if (args.length >= 2) {
-      // Case 2: Direct image URL + prompt
-      imageUrl = args[0];
-      prompt = args.slice(1).join(" ");
-    }
+        // 2️⃣ Case: Direct image URL in command
+        else if (args.length > 0 && args[0].startsWith("http")) {
+            imageUrl = args[0];
+        }
 
-    if (!imageUrl) return message.reply('❌ | Provide an image URL or reply to an image');
-    if (!prompt) return message.reply('❌ | Provide a prompt');
+        if (!imageUrl) return api.sendMessage('❌ | Reply to an image or provide an image URL', event.threadID);
+        if (!prompt) return api.sendMessage('❌ | Provide a prompt', event.threadID);
 
-    // Show processing reaction
-    message.reaction("⏳", event.messageID);
+        const cacheDir = path.join(__dirname, 'cache');
+        if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
 
-    const apiUrl = `https://nexalo-api.vercel.app/api/ai-canvas?url=${encodeURIComponent(imageUrl)}&prompt=${encodeURIComponent(prompt)}`;
+        const imagePath = path.join(cacheDir, `nano_${senderID}_${Date.now()}.png`);
+        api.sendMessage('⏳ | Processing your image...', event.threadID);
 
-    try {
-      const res = await axios.get(apiUrl, { timeout: 30000 });
+        try {
+            // Call Gemini Nano Banana API
+            const apiUrl = `https://nexalo-api.vercel.app/api/ai-canvas?url=${encodeURIComponent(imageUrl)}&prompt=${encodeURIComponent(prompt)}`;
+            const res = await axios.get(apiUrl);
 
-      const editedImageUrl = res.data?.data?.imageResponseVo?.urls?.[0];
-      if (!editedImageUrl) {
-        return message.reply("❌ | Nano API returned invalid data. Try again later.");
-      }
+            const editedImageUrl = res.data?.data?.imageResponseVo?.urls?.[0];
+            if (!editedImageUrl) return api.sendMessage('❌ | Nano API returned invalid data. Try again later.', event.threadID);
 
-      // Send edited image
-      await message.reply({
-        body: `✅ | Your image has been edited successfully! 🍌✨`,
-        attachment: await global.utils.getStreamFromURL(editedImageUrl, 'nano.png')
-      });
+            // Download edited image
+            const imageResponse = await axios.get(editedImageUrl, { responseType: 'arraybuffer' });
+            fs.writeFileSync(imagePath, Buffer.from(imageResponse.data, 'binary'));
 
-    } catch (error) {
-      console.error('Nano API error:', error.message || error);
-      message.reply("❌ | Failed to process image. Try again later.");
-    }
-  }
+            // Send back edited image
+            await api.sendMessage({
+                body: `✅ | Edited image ready! 🍌✨`,
+                attachment: fs.createReadStream(imagePath)
+            }, event.threadID, () => fs.unlinkSync(imagePath));
+
+        } catch (error) {
+            console.error('Nano API error:', error.message || error);
+            api.sendMessage('❌ | Failed to process image. Try again later.', event.threadID);
+        }
+    },
 };
