@@ -12,31 +12,33 @@ module.exports = {
 
   onStart: async function({ message, event, args }) {
     const prompt = args.join(" ");
-
-    if (!event.messageReply || !event?.messageReply?.attachments[0]?.url) {
+    if (!event.messageReply || !event?.messageReply?.attachments?.[0]?.url) {
       return message.reply('❌ | Reply to an image');
-    } else if (!prompt) {
+    }
+    if (!prompt) {
       return message.reply("❌ | Provide a prompt");
     }
 
     const replyImageUrl = event.messageReply.attachments[0].url;
     message.reaction("⏳", event.messageID);
 
-    try {
-      const url = `https://nexalo-api.vercel.app/api/ai-canvas?url=${encodeURIComponent(replyImageUrl)}&prompt=${encodeURIComponent(prompt)}`;
-      const res = await axios.get(url);
+    const apiUrl = `https://nexalo-api.vercel.app/api/ai-canvas?url=${encodeURIComponent(replyImageUrl)}&prompt=${encodeURIComponent(prompt)}`;
 
-      if (!res.data?.result) {
-        return message.reply("❌ | Failed to generate image");
+    try {
+      const res = await axios.get(apiUrl, { timeout: 30000 });
+
+      if (!res.data || !res.data.result) {
+        return message.reply("❌ | Nano API failed or returned invalid data. Try again later.");
       }
 
       await message.reply({
-        body: `✅ | Image edited successfully`,
+        body: `✅ | Your image has been edited successfully! 🍌✨`,
         attachment: await global.utils.getStreamFromURL(res.data.result, 'nano.png')
       });
 
     } catch (error) {
-      message.send("❌ | " + error.message);
+      console.error('Nano API error:', error.message || error);
+      message.reply("❌ | Failed to process image. Try again later.");
     }
   }
 };
