@@ -4,46 +4,27 @@ module.exports = {
   config: {
     name: "leave",
     aliases: ["l"],
-    version: "2.0",
-    author: "Sandy | Modified by Farhan",
-    countDown: 5,
-    role: 2, // only admin can use
+    version: "2.1",
+    author: "Sandy | Fixed by Farhan",
+    role: 2,
     shortDescription: "Bot will leave the group",
-    longDescription: "Make the bot leave the current or specified group",
-    category: "admin",
-    guide: {
-      vi: "{pn} [tid]",
-      en: "{pn} [tid]"
-    }
+    category: "admin"
   },
 
-  onStart: async function ({ api, event, args, message }) {
-    let id;
+  onStart: async function ({ api, event, args }) {
+    let id = args[0] ? parseInt(args[0]) : event.threadID;
 
-    // If no argument → leave current group
-    if (!args[0]) {
-      id = event.threadID;
-    } else {
-      id = parseInt(args[0]);
-    }
-
-    // Build leave message
-    const leaveMsg = {
-      body: "👋 Goodbye guys, I'm leaving this group!",
-    };
+    const form = { body: "👋 Goodbye guys, I'm leaving this group!" };
 
     // Attach leave.mp4 if available
     try {
       const mp4Path = `${__dirname}/assets/leave.mp4`;
       if (fs.existsSync(mp4Path)) {
-        leaveMsg.attachment = fs.createReadStream(mp4Path);
+        form.attachment = fs.createReadStream(mp4Path);
       }
-    } catch (e) {
-      // ignore if no video
-    }
+    } catch {}
 
-    // Send message then leave
-    return api.sendMessage(leaveMsg, id, () => {
+    return api.sendMessage(form, id, () => {
       api.removeUserFromGroup(api.getCurrentUserID(), id);
     });
   }
