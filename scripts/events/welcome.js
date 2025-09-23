@@ -5,9 +5,14 @@ const { getTime } = global.utils;
 if (!global.temp.welcomeEvent) global.temp.welcomeEvent = {};
 
 module.exports = {
-  config: { name: "welcome", version: "2.2", category: "events", author: "Farhan" },
+  config: {
+    name: "welcome",
+    version: "2.2",
+    author: "NTKhang | Fixed by Farhan",
+    category: "events"
+  },
 
-  onStart: async ({ threadsData, message, event, api, getLang }) => {
+  onStart: async ({ threadsData, message, event, api }) => {
     if (event.logMessageType !== "log:subscribe") return;
 
     const { threadID } = event;
@@ -18,12 +23,18 @@ module.exports = {
     const names = dataAdded.map(u => u.fullName).join(", ");
     const session = hours <= 10 ? "morning" : hours <= 12 ? "noon" : hours <= 18 ? "afternoon" : "evening";
 
-    let welcomeMessage = `Hello ${names}, welcome to ${threadData.threadName}! Have a nice ${session} 😊`;
+    const text = `Hello ${names}, welcome to ${threadData.threadName}! Have a nice ${session} 😊`;
 
-    const mp4Path = path.join(__dirname, "../../Baka-chan-1/assets/welcome.mp4");
-    const form = { body: welcomeMessage };
-    if (fs.existsSync(mp4Path)) form.attachment = fs.createReadStream(mp4Path);
+    // Send the specific welcome.mp4 from assets folder
+    const videoPath = path.join(__dirname, "../../Baka-chan-1/assets/welcome.mp4");
 
-    message.send(form);
+    if (fs.existsSync(videoPath)) {
+      return message.reply({
+        body: text,
+        attachment: fs.createReadStream(videoPath)
+      });
+    }
+
+    return message.reply(text);
   }
 };
