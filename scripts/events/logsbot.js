@@ -1,66 +1,39 @@
-const fs = require("fs-extra");
+const fs = require("fs");
+const path = require("path");
 const { getTime } = global.utils;
 
 module.exports = {
   config: {
     name: "logsbot",
     isBot: true,
-    version: "2.1",
+    version: "2.2",
     author: "NTKhang | Fixed by Farhan",
-    envConfig: { allow: true },
     category: "events"
   },
 
-  langs: { /* same as before */ },
+  onStart: async ({ usersData, threadsData, event, message }) => {
+    const botID = global.GoatBot.api.getCurrentUserID();
+    if (event.author == botID) return;
 
-  onStart: async ({ usersData, threadsData, event, api, getLang }) => {
-    const { author, threadID, logMessageType, logMessageData } = event;
-    const botID = api.getCurrentUserID();
-    const { config } = global.GoatBot;
-
-    const isAdded = logMessageType === "log:subscribe" &&
-      logMessageData.addedParticipants.some(p => p.userFbId == botID);
-
-    const isKicked = logMessageType === "log:unsubscribe" &&
-      logMessageData.leftParticipantFbId == botID;
-
+    const isAdded = event.logMessageType == "log:subscribe" && event.logMessageData.addedParticipants.some(p => p.userFbId == botID);
+    const isKicked = event.logMessageType == "log:unsubscribe" && event.logMessageData.leftParticipantFbId == botID;
     if (!isAdded && !isKicked) return;
-    if (author == botID) return;
 
-    let msg = getLang("title");
-    let threadName, memberCount, authorName;
+    const authorName = await usersData.getName(event.author);
+    const threadID = event.threadID;
+    const threadData = await threadsData.get(threadID);
+    const threadName = threadData?.threadName || "Unknown";
 
-    try { authorName = await usersData.getName(author); } catch { authorName = "Unknown"; }
+    const text = isAdded
+      ? `✅ Bot added to group ${threadName} by ${authorName}`
+      : `❌ Bot was kicked from group ${threadName} by ${authorName}`;
 
-    if (isAdded) {
-      const info = await api.getThreadInfo(threadID);
-      threadName = info.threadName || "Unnamed Group";
-      memberCount = info.participantIDs?.length || "N/A";
-      msg += getLang("added", authorName);
-    }
+    // Send the specific log.mp4 from assets folder
+    const videoPath = path.join(__dirname, "../../assets/log.mp4");
 
-    if (isKicked) {
-      const data = await threadsData.get(threadID);
-      threadName = data?.threadName || "Unnamed Group";
-      memberCount = data?.members?.length || "N/A";
-      msg += getLang("kicked", authorName);
-    }
-
-    const time = getTime("DD/MM/YYYY HH:mm:ss");
-    msg += getLang("footer", author, threadName, threadID, time, memberCount);
-
-    const form = { body: msg };
-
-    // Attach log.mp4
-    try {
-      const mp4Path = `${__dirname}/assets/log.mp4`;
-      if (fs.existsSync(mp4Path)) {
-        form.attachment = fs.createReadStream(mp4Path);
-      }
-    } catch {}
-
-    for (const adminID of config.adminBot) {
-      api.sendMessage(form, adminID);
-    }
+    return message.reply({
+      body: text,
+      attachment: fs.createReadStream(videoPath)
+    });
   }
 };
