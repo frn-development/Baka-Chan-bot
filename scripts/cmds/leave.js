@@ -1,4 +1,5 @@
-const fs = require("fs-extra");
+const fs = require("fs");
+const path = require("path");
 
 module.exports = {
   config: {
@@ -11,21 +12,15 @@ module.exports = {
     category: "admin"
   },
 
-  onStart: async function ({ api, event, args }) {
-    let id = args[0] ? parseInt(args[0]) : event.threadID;
+  onStart: async function ({ api, event, args, message }) {
+    let id = args.length ? parseInt(args.join(" ")) : event.threadID;
 
     const form = { body: "👋 Goodbye guys, I'm leaving this group!" };
 
-    // Attach leave.mp4 if available
-    try {
-      const mp4Path = `${__dirname}/assets/leave.mp4`;
-      if (fs.existsSync(mp4Path)) {
-        form.attachment = fs.createReadStream(mp4Path);
-      }
-    } catch {}
+    // Attach leave.mp4 automatically
+    const mp4Path = path.join(__dirname, "../../Baka-chan-1/assets/leave.mp4");
+    if (fs.existsSync(mp4Path)) form.attachment = fs.createReadStream(mp4Path);
 
-    return api.sendMessage(form, id, () => {
-      api.removeUserFromGroup(api.getCurrentUserID(), id);
-    });
+    return api.sendMessage(form, id, () => api.removeUserFromGroup(api.getCurrentUserID(), id));
   }
 };
