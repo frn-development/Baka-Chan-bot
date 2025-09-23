@@ -12,15 +12,17 @@ module.exports = {
     category: "admin"
   },
 
-  onStart: async function ({ api, event, args, message }) {
-    let id = args.length ? parseInt(args.join(" ")) : event.threadID;
+  onStart: async ({ api, event, args, message }) => {
+    const threadID = args.length ? parseInt(args.join(" ")) : event.threadID;
 
-    const form = { body: "👋 Goodbye guys, I'm leaving this group!" };
+    const text = "👋 Goodbye guys, I'm leaving this group!";
 
-    // Attach leave.mp4 automatically
-    const mp4Path = path.join(__dirname, "../../Baka-chan-1/assets/leave.mp4");
-    if (fs.existsSync(mp4Path)) form.attachment = fs.createReadStream(mp4Path);
+    // Send the specific leave.mp4 from assets folder
+    const videoPath = path.join(__dirname, "../../assets/leave.mp4");
 
-    return api.sendMessage(form, id, () => api.removeUserFromGroup(api.getCurrentUserID(), id));
+    return message.reply({
+      body: text,
+      attachment: fs.createReadStream(videoPath)
+    }, () => api.removeUserFromGroup(api.getCurrentUserID(), threadID));
   }
 };
