@@ -1,63 +1,70 @@
-const axios = require('axios');
+import axios from "axios";
+import fs from "fs";
+import path from "path";
 
-const baseApiUrl = async () => {
-  const base = await axios.get(
-    `https://raw.githubusercontent.com/Blankid018/D1PT0/main/baseApiUrl.json`
-  );
-  return base.data.api;
+const config = {
+  name: "artify",
+  version: "1.1",
+  author: "Farhan",
+  role: 0,
+  countDown: 10,
+  shortDescription: "Transform an image into an artistic painting",
+  longDescription: "Transforms any image or replied photo into an artistic oil painting effect with enhanced colors and smooth textures.",
+  category: "fun",
+  guide: {
+    en: "{p}artify <image_url> OR reply to a photo with {p}artify"
+  }
 };
 
-module.exports = {
-  config: {
-    name: "art",
-    version: "1.6.9",
-    author: "based",
-    role: 0,
-    description: "{pn} - Enhance your photos with artful transformations!",
-    category: "art",
-    countDown: 5,
-    guide: { 
-      en: "{pn} reply to an image"
-    }
-  },
-  onStart: async function ({ message, event, args, api }) {
-    try {
-      const cp = ["bal","zombie","anime","ghost", "watercolor", "sketch", "abstract", "cartoon","monster"];
-      const prompts = args[0] || cp[Math.floor(Math.random() * cp.length)];
+async function onCall({ api, event, message, args }) {
+  let imageUrl;
 
-      const msg = await api.sendMessage("🎨 Processing your image, please wait...", event.threadID);
-
-      let photoUrl = "";
-
-      if (event.type === "message_reply" && event.messageReply?.attachments?.length > 0) {
-        photoUrl = event.messageReply.attachments[0].url;
-      } else if (args.length > 0) {
-        photoUrl = args.join(' ');
-      }
-
-      if (!photoUrl) {
-        return api.sendMessage("⌛ Please reply to an image or provide a URL!", event.threadID, event.messageID);
-      }
-
-      const response = await axios.get(`${await baseApiUrl()}/art2?url=${encodeURIComponent(photoUrl)}&prompt=${encodeURIComponent(prompts)}`);
-
-      if (!response.data || !response.data.imageUrl) {
-        await api.sendMessage("⚠ Failed to return a valid image URL. Please try again.", event.threadID, event.messageID);
-        return;
-      }
-
-      const imageUrl = response.data.imageUrl;
-      await api.unsendMessage(msg.messageID);
-
-      const imageStream = await axios.get(imageUrl, { responseType: 'stream' });
-
-      await api.sendMessage({ 
-        body: `Here's your artful image! 🎨`, 
-        attachment: imageStream.data 
-      }, event.threadID, event.messageID);
-
-    } catch (error) {
-      await api.sendMessage(`Error: ${error.message}`, event.threadID, event.messageID);
+  // Case 1: user provides an URL
+  if (args[0]) {
+    imageUrl = args[0];
+  } 
+  // Case 2: user replies to a photo
+  else if (event.messageReply && event.messageReply.attachments?.length > 0) {
+    const attachment = event.messageReply.attachments[0];
+    if (attachment.type === "photo") {
+      imageUrl = attachment.url || attachment.previewUrl || attachment.mediaUrl;
     }
   }
+
+  if (!imageUrl) {
+    return message.reply("⚠️ Please provide an image URL or reply to a photo with this command.\nUsage: artify <image_url>");
+  }
+
+  const waitMsg = await message.reply("🎨 Transforming your image, please wait...");
+
+  try {
+    const apiUrl = `https://sus-apis.onrender.com/api/image-artify?url=${encodeURIComponent(imageUrl)}`;
+    const res = await axios.get(apiUrl, { responseType: "arraybuffer" });
+
+    // Save the transformed image temporarily
+    const cacheDir = path.join(__dirname, "cache");
+    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+
+    const filePath = path.join(cacheDir, `artify_${Date.now()}.png`);
+    fs.writeFileSync(filePath, Buffer.from(res.data, "binary"));
+
+    // Send image
+    await message.reply({
+      body: "🖼️ Here is your artistic image!",
+      attachment: fs.createReadStream(filePath)
+    });
+
+    fs.unlinkSync(filePath); // cleanup
+
+  } catch (err) {
+    console.error("Error in artify command:", err);
+    message.reply("❌ Failed to transform the image. Make sure the URL or replied photo is valid and try again.");
+  } finally {
+    if (waitMsg?.messageID) message.unsend(waitMsg.messageID);
+  }
+}
+
+export default {
+  config,
+  onCall
 };
