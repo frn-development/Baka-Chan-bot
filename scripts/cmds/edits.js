@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 const config = {
-  name: "editimg",
+  name: "editis",
   aliases: ["edit", "aiimage"],
   version: "2.0",
   author: "Farhan & KHAN RAHUL RK",
