@@ -11,8 +11,9 @@ module.exports = {
     category: "events"
   },
 
-  onStart: async ({ usersData, threadsData, event, message }) => {
-    const botID = global.GoatBot.api.getCurrentUserID();
+  onStart: async ({ usersData, threadsData, event, message, api }) => {
+    const botID = api.getCurrentUserID(); // ✅ use the passed api
+
     if (event.author == botID) return;
 
     const isAdded = event.logMessageType == "log:subscribe" && event.logMessageData.addedParticipants.some(p => p.userFbId == botID);
