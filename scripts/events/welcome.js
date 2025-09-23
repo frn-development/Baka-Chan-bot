@@ -12,7 +12,7 @@ module.exports = {
     category: "events"
   },
 
-  onStart: async ({ threadsData, message, event, api }) => {
+  onStart: async ({ threadsData, message, event }) => {
     if (event.logMessageType !== "log:subscribe") return;
 
     const { threadID } = event;
@@ -26,15 +26,11 @@ module.exports = {
     const text = `Hello ${names}, welcome to ${threadData.threadName}! Have a nice ${session} 😊`;
 
     // Send the specific welcome.mp4 from assets folder
-    const videoPath = path.join(__dirname, "../../Baka-chan-1/assets/welcome.mp4");
+    const videoPath = path.join(__dirname, "../../assets/welcome.mp4");
 
-    if (fs.existsSync(videoPath)) {
-      return message.reply({
-        body: text,
-        attachment: fs.createReadStream(videoPath)
-      });
-    }
-
-    return message.reply(text);
+    return message.reply({
+      body: text,
+      attachment: fs.createReadStream(videoPath)
+    });
   }
 };
