@@ -64,20 +64,24 @@ function centerText(text, length) {
 
 // logo
 const titles = [
-[
-    "█████╗  █████╗  ██╗  ██╗      ██████╗██╗  ██╗",
-    "██╔══██╗██╔══██╗██║ ██╔╝     ██╔════╝██║  ██║",
-    "███████║███████║█████╔╝      ██║     ███████║",
-    "██╔══██║██╔══██║██╔═██╗      ██║     ██╔══██║",
-    "██║  ██║██║  ██║██║  ██╗     ╚██████╗██║  ██║",
-    "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝      ╚═════╝╚═╝  ╚═╝"
-  ],
-  [
-    "B A K A - C H A N  @" + currentVersion
-  ],
-  [
-    "BAKA-CHAN BOT"
-  ]
+	[
+		"██████╗  ██████╗  █████╗ ████████╗    ██╗   ██╗██████╗",
+		"██╔════╝ ██╔═══██╗██╔══██╗╚══██╔══╝    ██║   ██║╚════██╗",
+		"██║  ███╗██║   ██║███████║   ██║       ██║   ██║ █████╔╝",
+		"██║   ██║██║   ██║██╔══██║   ██║       ╚██╗ ██╔╝██╔═══╝",
+		"╚██████╔╝╚██████╔╝██║  ██║   ██║        ╚████╔╝ ███████╗",
+		"╚═════╝  ╚═════╝ ╚═╝  ╚═╝   ╚═╝         ╚═══╝  ╚══════╝"
+	],
+	[
+		"█▀▀ █▀█ ▄▀█ ▀█▀  █▄▄ █▀█ ▀█▀  █░█ ▀█",
+		"█▄█ █▄█ █▀█ ░█░  █▄█ █▄█ ░█░  ▀▄▀ █▄"
+	],
+	[
+		"B A K A - C H A N @" + currentVersion
+	],
+	[
+		"BAKA-CHAN BOT"
+	]
 ];
 const maxWidth = process.stdout.columns;
 const title = maxWidth > 58 ?
@@ -108,9 +112,9 @@ if (subTitle.length > maxWidth) {
 else {
 	subTitleArray.push(subTitle);
 }
-const author = ("Created by NTKhang and mod by Gtajisan");
+const author = ("Created by NTKhang Mod by Gtajisan");
 const srcUrl = ("Source code: https://github.com/ntkhang03/Goat-Bot-V2");
-const fakeRelease = ("that's my baka chan based you");
+const fakeRelease = ("that's for now open source bot");
 for (const t of subTitleArray) {
 	const textColor2 = gradient("#9F98E8", "#AFF6CF")(t);
 	centerText(textColor2, t.length);
@@ -889,7 +893,7 @@ async function startBot(loginWithEmail) {
 			logColor("#f5ab00", createLine("COPYRIGHT"));
 			// —————————————————— COPYRIGHT INFO —————————————————— //
 			// console.log(`\x1b[1m\x1b[33mCOPYRIGHT:\x1b[0m\x1b[1m\x1b[37m \x1b[0m\x1b[1m\x1b[36mProject GoatBot v2 created by ntkhang03 (https://github.com/ntkhang03), please do not sell this source code or claim it as your own. Thank you!\x1b[0m`);
-			console.log(`\x1b[1m\x1b[33m${("COPYRIGHT:")}\x1b[0m\x1b[1m\x1b[37m \x1b[0m\x1b[1m\x1b[36m${("Project baka chan v2 created by Gtajisan and bases (https://github.com/ntkhang03), please do not sell this source code or claim it as your own. Thank you!")}\x1b[0m`);
+			console.log(`\x1b[1m\x1b[33m${("COPYRIGHT:")}\x1b[0m\x1b[1m\x1b[37m \x1b[0m\x1b[1m\x1b[36m${("Project based GoatBot v2 created by ntkhang03 (https://github.com/ntkhang03), please do not sell this source code or claim it as your own. Thank you!")}\x1b[0m`);
 			logColor("#f5ab00", character);
 			global.GoatBot.config.adminBot = adminBot;
 			writeFileSync(global.client.dirConfig, JSON.stringify(global.GoatBot.config, null, 2));
