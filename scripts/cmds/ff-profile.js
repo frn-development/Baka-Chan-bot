@@ -21,7 +21,7 @@ module.exports.config = {
 
   prefix: true,
 
-  category: " Game",
+  category: "fan",
 
   commandCategory: "fan",
 
