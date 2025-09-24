@@ -1,5 +1,5 @@
 // set bash title
-process.stdout.write("\x1b]2;Baka-Chan - Based on Goat Bot V2 (NTKhang) | Made by Gtajisan\x1b\x5c");
+process.stdout.write("\x1b]2;Goat Bot V2 - Made by NTKhang\x1b\x5c");
 const defaultRequire = require;
 
 function decode(text) {
@@ -77,10 +77,10 @@ const titles = [
 		"█▄█ █▄█ █▀█ ░█░  █▄█ █▄█ ░█░  ▀▄▀ █▄"
 	],
 	[
-		"B A K A - C H A N @" + currentVersion
+		"G O A T B O T  V 2 @" + currentVersion
 	],
 	[
-		"BAKA-CHAN BOT"
+		"GOATBOT V2"
 	]
 ];
 const maxWidth = process.stdout.columns;
@@ -112,9 +112,9 @@ if (subTitle.length > maxWidth) {
 else {
 	subTitleArray.push(subTitle);
 }
-const author = ("Created by NTKhang Mod by Gtajisan");
+const author = ("Created by NTKhang with ♡");
 const srcUrl = ("Source code: https://github.com/ntkhang03/Goat-Bot-V2");
-const fakeRelease = ("that's for now open source bot");
+const fakeRelease = ("ALL VERSIONS NOT RELEASED HERE ARE FAKE");
 for (const t of subTitleArray) {
 	const textColor2 = gradient("#9F98E8", "#AFF6CF")(t);
 	centerText(textColor2, t.length);
@@ -893,7 +893,7 @@ async function startBot(loginWithEmail) {
 			logColor("#f5ab00", createLine("COPYRIGHT"));
 			// —————————————————— COPYRIGHT INFO —————————————————— //
 			// console.log(`\x1b[1m\x1b[33mCOPYRIGHT:\x1b[0m\x1b[1m\x1b[37m \x1b[0m\x1b[1m\x1b[36mProject GoatBot v2 created by ntkhang03 (https://github.com/ntkhang03), please do not sell this source code or claim it as your own. Thank you!\x1b[0m`);
-			console.log(`\x1b[1m\x1b[33m${("COPYRIGHT:")}\x1b[0m\x1b[1m\x1b[37m \x1b[0m\x1b[1m\x1b[36m${("Project based GoatBot v2 created by ntkhang03 (https://github.com/ntkhang03), please do not sell this source code or claim it as your own. Thank you!")}\x1b[0m`);
+			console.log(`\x1b[1m\x1b[33m${("COPYRIGHT:")}\x1b[0m\x1b[1m\x1b[37m \x1b[0m\x1b[1m\x1b[36m${("Project GoatBot v2 created by ntkhang03 (https://github.com/ntkhang03), please do not sell this source code or claim it as your own. Thank you!")}\x1b[0m`);
 			logColor("#f5ab00", character);
 			global.GoatBot.config.adminBot = adminBot;
 			writeFileSync(global.client.dirConfig, JSON.stringify(global.GoatBot.config, null, 2));
