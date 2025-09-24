@@ -1,66 +1,51 @@
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
+const axios = require("axios");
+const fs = require("fs-extra");
+const path = require("path");
 
 module.exports = {
-    config: {
-        name: 'nano',
-        version: '1.1',
-        author: 'Farhan',
-        countDown: 10,
-        prefix: true,
-        groupAdminOnly: false,
-        description: 'Edit or enhance any photo using Gemini Nano Banana API.',
-        category: 'fun',
-        guide: {
-            en: '{pn}nano [prompt] | reply to an image or provide image URL'
-        },
-    },
-    onStart: async ({ api, event, args }) => {
-        const { senderID, messageReply } = event;
-        let imageUrl = null;
-        const prompt = args.join(" ");
+  config: {
+    name: "banana",
+    version: "1.0",
+    author: "Farhan",
+    countDown: 5,
+    role: 0,
+    shortDescription: { en: "🍌 Edit image with Banana AI" },
+    longDescription: { en: "Use Gemini Nano Banana API to edit images with fun prompts 🍌✨" },
+    category: "fan",
+    guide: { en: "{p}banana [prompt] (reply to image)" }
+  },
 
-        // 1️⃣ Case: Reply to a Messenger image
-        if (messageReply && messageReply.attachments?.[0]?.url) {
-            imageUrl = messageReply.attachments[0].url;
-        }
+  onStart: async function ({ api, event, args, message }) {
+    const prompt = args.join(" ").trim();
+    const repliedImage = event.messageReply?.attachments?.[0];
 
-        // 2️⃣ Case: Direct image URL in command
-        else if (args.length > 0 && args[0].startsWith("http")) {
-            imageUrl = args[0];
-        }
+    if (!prompt || !repliedImage || repliedImage.type !== "photo") {
+      return message.reply("⚠️ | Please reply to an image and type a prompt. Example:\n!banana make it banana cyberpunk 🍌");
+    }
 
-        if (!imageUrl) return api.sendMessage('❌ | Reply to an image or provide an image URL', event.threadID);
-        if (!prompt) return api.sendMessage('❌ | Provide a prompt', event.threadID);
+    const imgPath = path.join(__dirname, "cache", `${Date.now()}_banana.jpg`);
+    const waitMsg = await message.reply(`🍌✨ Banana AI is cooking your image with:\n"${prompt}"\n\nPlease wait... 🚀`);
 
-        const cacheDir = path.join(__dirname, 'cache');
-        if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+    try {
+      const imgURL = repliedImage.url;
+      const apiURL = `https://nexalo-api.vercel.app/api/ai-canvas?url=${encodeURIComponent(imgURL)}&prompt=${encodeURIComponent(prompt)}`;
 
-        const imagePath = path.join(cacheDir, `nano_${senderID}_${Date.now()}.png`);
-        api.sendMessage('⏳ | Processing your image...', event.threadID);
+      const res = await axios.get(apiURL, { responseType: "arraybuffer" });
 
-        try {
-            // Call Gemini Nano Banana API
-            const apiUrl = `https://nexalo-api.vercel.app/api/ai-canvas?url=${encodeURIComponent(imageUrl)}&prompt=${encodeURIComponent(prompt)}`;
-            const res = await axios.get(apiUrl);
+      await fs.ensureDir(path.dirname(imgPath));
+      await fs.writeFile(imgPath, Buffer.from(res.data, "binary"));
 
-            const editedImageUrl = res.data?.data?.imageResponseVo?.urls?.[0];
-            if (!editedImageUrl) return api.sendMessage('❌ | Nano API returned invalid data. Try again later.', event.threadID);
+      await message.reply({
+        body: `✅ | Done! Your Banana AI edit is ready 🍌\nPrompt: "${prompt}"`,
+        attachment: fs.createReadStream(imgPath)
+      });
 
-            // Download edited image
-            const imageResponse = await axios.get(editedImageUrl, { responseType: 'arraybuffer' });
-            fs.writeFileSync(imagePath, Buffer.from(imageResponse.data, 'binary'));
-
-            // Send back edited image
-            await api.sendMessage({
-                body: `✅ | Edited image ready! 🍌✨`,
-                attachment: fs.createReadStream(imagePath)
-            }, event.threadID, () => fs.unlinkSync(imagePath));
-
-        } catch (error) {
-            console.error('Nano API error:', error.message || error);
-            api.sendMessage('❌ | Failed to process image. Try again later.', event.threadID);
-        }
-    },
+    } catch (err) {
+      console.error("BANANA Error:", err);
+      message.reply("❌ | Banana AI failed to edit your image. Maybe too many bananas? 🍌😂");
+    } finally {
+      await fs.remove(imgPath);
+      api.unsendMessage(waitMsg.messageID);
+    }
+  }
 };
