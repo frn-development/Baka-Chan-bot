@@ -27,6 +27,30 @@
 - added new api.
 
 ---
+### nexus-fca api 
+This is a maintained fork of the original `nexus-fca` Messenger API, adapted for my **Chika Shirogane** bot and compatible with **GoatBot-V2** (with modified source).
+
+### Install directly from GitHub
+```bash
+npm install tas33n/nexus-fca
+```
+
+Or add to your `package.json`:
+```json
+"dependencies": {
+  "nexus-fca": "github:tas33n/nexus-fca"
+}
+```
+
+### Usage
+Import and use as you would the main module:
+```js
+const login = require('nexus-fca');
+(async () => {
+  const api = await login({ appState: require('./appstate.json') });
+  // ...
+})();
+```
 
 ## 🏁 **Getting Started**
 1. Clone the repository:
