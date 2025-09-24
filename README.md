@@ -1,4 +1,4 @@
-<img src="https://i.ibb.co/RQ28H2p/banner.png" alt="banner">
+[![unnamed-3-2.jpg](https://i.postimg.cc/bwBpGb9q/unnamed-3-2.jpg)](https://postimg.cc/mPC0JPnn)
 
 <h1 align="center"><img src="./dashboard/images/logo-non-bg.png" width="22px"> Baka-Chan - Bot Chat Messenger</h1>
 
