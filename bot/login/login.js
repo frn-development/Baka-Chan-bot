@@ -1,15 +1,13 @@
 // set bash title
-process.stdout.write("\x1b]2;Baka-Chan - Based on Goat Bot V2 (NTKhang) | Made by Gtajisan (Farhan)\x1b\x5c");
-
+process.stdout.write("\x1b]2;Baka-Chan - Based on Goat Bot V2 (NTKhang) | Made by Gtajisan\x1b\x5c");
 const defaultRequire = require;
 
 function decode(text) {
-  text = Buffer.from(text, 'hex').toString('utf-8');
-  text = Buffer.from(text, 'hex').toString('utf-8');
-  text = Buffer.from(text, 'base64').toString('utf-8');
-  return text;
+	text = Buffer.from(text, 'hex').toString('utf-8');
+	text = Buffer.from(text, 'hex').toString('utf-8');
+	text = Buffer.from(text, 'base64').toString('utf-8');
+	return text;
 }
-
 
 const gradient = defaultRequire("gradient-string");
 const axios = defaultRequire("axios");
@@ -64,7 +62,23 @@ function centerText(text, length) {
 	console.log(paddedString);
 }
 
-
+// logo
+const titles = [
+[
+    "█████╗  █████╗  ██╗  ██╗      ██████╗██╗  ██╗",
+    "██╔══██╗██╔══██╗██║ ██╔╝     ██╔════╝██║  ██║",
+    "███████║███████║█████╔╝      ██║     ███████║",
+    "██╔══██║██╔══██║██╔═██╗      ██║     ██╔══██║",
+    "██║  ██║██║  ██║██║  ██╗     ╚██████╗██║  ██║",
+    "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝      ╚═════╝╚═╝  ╚═╝"
+  ],
+  [
+    "B A K A - C H A N  @" + currentVersion
+  ],
+  [
+    "BAKA-CHAN BOT"
+  ]
+];
 const maxWidth = process.stdout.columns;
 const title = maxWidth > 58 ?
 	titles[0] :
@@ -86,24 +100,7 @@ if (subTitle.length > maxWidth) {
 	while (subTitle.length > maxWidth) {
 		let lastSpace = subTitle.slice(0, maxWidth).lastIndexOf(' ');
 		lastSpace = lastSpace == -1 ? maxWidth : lastSpace;
-		subTitleArray.push(subTitle.slice(0, lastSpace).t// logo
-const titles = [
-  [
-    "█████╗  █████╗  ██╗  ██╗      ██████╗██╗  ██╗",
-    "██╔══██╗██╔══██╗██║ ██╔╝     ██╔════╝██║  ██║",
-    "███████║███████║█████╔╝      ██║     ███████║",
-    "██╔══██║██╔══██║██╔═██╗      ██║     ██╔══██║",
-    "██║  ██║██║  ██║██║  ██╗     ╚██████╗██║  ██║",
-    "╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝      ╚═════╝╚═╝  ╚═╝"
-  ],
-  [
-    "B A K A - C H A N  @" + currentVersion
-  ],
-  [
-    "BAKA-CHAN BOT"
-  ]
-];
-rim());
+		subTitleArray.push(subTitle.slice(0, lastSpace).trim());
 		subTitle = subTitle.slice(lastSpace).trim();
 	}
 	subTitle ? subTitleArray.push(subTitle) : '';
@@ -111,12 +108,10 @@ rim());
 else {
 	subTitleArray.push(subTitle);
 }
-const author = "Created by Gtajisan (Farhan) ♡";
-const srcUrl = "Based on Goat Bot V2: https://github.com/ntkhang03/Goat-Bot-V2";
-
+const author = ("Created by NTKhang and mod by Gtajisan");
+const srcUrl = ("Source code: https://github.com/ntkhang03/Goat-Bot-V2");
+const fakeRelease = ("that's my baka chan based you");
 for (const t of subTitleArray) {
-  // your code logic here
-}
 	const textColor2 = gradient("#9F98E8", "#AFF6CF")(t);
 	centerText(textColor2, t.length);
 }
@@ -894,7 +889,7 @@ async function startBot(loginWithEmail) {
 			logColor("#f5ab00", createLine("COPYRIGHT"));
 			// —————————————————— COPYRIGHT INFO —————————————————— //
 			// console.log(`\x1b[1m\x1b[33mCOPYRIGHT:\x1b[0m\x1b[1m\x1b[37m \x1b[0m\x1b[1m\x1b[36mProject GoatBot v2 created by ntkhang03 (https://github.com/ntkhang03), please do not sell this source code or claim it as your own. Thank you!\x1b[0m`);
-			console.log(`\x1b[1m\x1b[33m${("COPYRIGHT:")}\x1b[0m\x1b[1m\x1b[37m \x1b[0m\x1b[1m\x1b[36m${("Project GoatBot v2 created by ntkhang03 (https://github.com/ntkhang03), please do not sell this source code or claim it as your own. Thank you!")}\x1b[0m`);
+			console.log(`\x1b[1m\x1b[33m${("COPYRIGHT:")}\x1b[0m\x1b[1m\x1b[37m \x1b[0m\x1b[1m\x1b[36m${("Project baka chan v2 created by Gtajisan and bases (https://github.com/ntkhang03), please do not sell this source code or claim it as your own. Thank you!")}\x1b[0m`);
 			logColor("#f5ab00", character);
 			global.GoatBot.config.adminBot = adminBot;
 			writeFileSync(global.client.dirConfig, JSON.stringify(global.GoatBot.config, null, 2));
