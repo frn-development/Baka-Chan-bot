@@ -1,66 +1,50 @@
 const axios = require("axios");
+const fs = require("fs-extra");
+const path = require("path");
 
 module.exports = {
-  config: {
-    name: "edit",
-    aliases: ["gmn"],
-    version: "1.2",
-    author: "frnwot",
-    shortDescription: "Gemini AI with image & text support",
-    longDescription: "Send text or image to Gemini API and get AI response.",
-    category: "ai",
-    guide: "{pn}gemini <text question> or reply to an image",
-  },
+config: {
+name: "edit",
+version: "1.0",
+author: "based",
+countDown: 5,
+role: 0,
+shortDescription: { en: "Edit image using prompt" },
+longDescription: { en: "Edit an uploaded image based on your prompt." },
+category: "image",
+guide: { en: "{p}edit [prompt] (reply to image)" }
+},
 
-  onStart: async function({ api, event, args }) {
-    const uid = 1;
-    const apikey = "66e0cfbb-62b8-4829-90c7-c78cacc72ae2";
+onStart: async function ({ api, event, args, message }) {
+const prompt = args.join(" ");
+const repliedImage = event.messageReply?.attachments?.[0];
 
-    // Check if reply to an image
-    let isReplyToImage = false;
-    let imageUrl = "";
+if (!prompt || !repliedImage || repliedImage.type !== "photo") {
+return message.reply("⚠️ | Please reply to a photo with your prompt to edit it.");
+}
 
-    if (
-      event.messageReply &&
-      event.messageReply.attachments &&
-      event.messageReply.attachments.length > 0 &&
-      event.messageReply.attachments[0].type === "photo"
-    ) {
-      isReplyToImage = true;
-      imageUrl = event.messageReply.attachments[0].url;
-    }
+const imgPath = path.join(__dirname, "cache", `${Date.now()}_edit.jpg`);
+const waitMsg = await message.reply(`🧪 Editing image for: "${prompt}"...\nPlease wait...`);
 
-    let payloadUrl = "";
-    if (isReplyToImage) {
-      // Send image url in ask param (or if API supports base64, can do that)
-      // Here assuming API accepts image URL in `ask` param
-      payloadUrl = `https://kaiz-apis.gleeze.com/api/gemini-pro?ask=${encodeURIComponent(imageUrl)}&uid=${uid}&apikey=${apikey}`;
-    } else {
-      if (args.length === 0) {
-        return api.sendMessage(
-          "❌ Please provide a question or reply to an image with a question.",
-          event.threadID,
-          event.messageID
-        );
-      }
-      const textQuery = args.join(" ");
-      payloadUrl = `https://kaiz-apis.gleeze.com/api/gemini-pro?ask=${encodeURIComponent(textQuery)}&uid=${uid}&apikey=${apikey}`;
-    }
+try {
+const imgURL = repliedImage.url;
+const imageUrl = `https://edit-and-gen.onrender.com/gen?prompt=${encodeURIComponent(prompt)}&image=${encodeURIComponent(imgURL)}`;
+const res = await axios.get(imageUrl, { responseType: "arraybuffer" });
 
-    try {
-      const res = await axios.get(payloadUrl);
-      if (res.data && res.data.response) {
-        return api.sendMessage(`\n${res.data.response}`, event.threadID, event.messageID);
-      } else {
-        return api.sendMessage("⚠️ No valid response from Gemini API.", event.threadID, event.messageID);
-      }
-    } catch (err) {
-      console.error("Gemini API error:", err);
-      return api.sendMessage(
-        "❌ Failed to contact Gemini API. Please try again later.",
-        event.threadID,
-        event.messageID
-      );
-    }
-  },
+await fs.ensureDir(path.dirname(imgPath));
+await fs.writeFile(imgPath, Buffer.from(res.data, "binary"));
+
+await message.reply({
+body: `✅ | Edited image for: "${prompt}"`,
+attachment: fs.createReadStream(imgPath)
+});
+
+} catch (err) {
+console.error("EDIT Error:", err);
+message.reply("❌ | Failed to edit image. Please try again later.");
+} finally {
+await fs.remove(imgPath);
+api.unsendMessage(waitMsg.messageID);
+}
+}
 };
