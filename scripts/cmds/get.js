@@ -10,7 +10,7 @@ module.exports.config = {
   role: 0,
   description: "Get Free Fire profile image or full info by UID",
   prefix: true,
-  commandCategory: "game",
+  commandCategory: "fan",
   usages: "get [uid] | get full [uid]"
 };
 
