@@ -9,34 +9,14 @@ const agent = new https.Agent({
 const moment = require("moment-timezone");
 const mimeDB = require("mime-db");
 const _ = require("lodash");
-const { google } = require("googleapis");
 const ora = require("ora");
 const log = require("./logger/log.js");
 const { isHexColor, colors } = require("./func/colors.js");
 const Prism = require("./func/prism.js");
 
 const { config } = global.GoatBot;
-const { gmailAccount } = config.credentials;
-const { clientId, clientSecret, refreshToken, apiKey: googleApiKey } = gmailAccount;
-if (!clientId) {
-	log.err("CREDENTIALS", `Please provide a valid clientId in file ${path.normalize(global.client.dirConfig)}`);
-	process.exit();
-}
-if (!clientSecret) {
-	log.err("CREDENTIALS", `Please provide a valid clientSecret in file ${path.normalize(global.client.dirConfig)}`);
-	process.exit();
-}
-if (!refreshToken) {
-	log.err("CREDENTIALS", `Please provide a valid refreshToken in file ${path.normalize(global.client.dirConfig)}`);
-	process.exit();
-}
 
-const oauth2ClientForGGDrive = new google.auth.OAuth2(clientId, clientSecret, "https://developers.google.com/oauthplayground");
-oauth2ClientForGGDrive.setCredentials({ refresh_token: refreshToken });
-const driveApi = google.drive({
-	version: 'v3',
-	auth: oauth2ClientForGGDrive
-});
+
 const word = [
 	'A', 'Á', 'À', 'Ả', 'Ã', 'Ạ', 'a', 'á', 'à', 'ả', 'ã', 'ạ',
 	'Ă', 'Ắ', 'Ằ', 'Ẳ', 'Ẵ', 'Ặ', 'ă', 'ắ', 'ằ', 'ẳ', 'ẵ', 'ặ',
@@ -761,191 +741,6 @@ async function uploadImgbb(file /* stream or image url */) {
 	}
 }
 
-async function uploadZippyshare(stream) {
-	const res = await axios({
-		method: 'POST',
-		url: 'https://api.zippysha.re/upload',
-		httpsAgent: agent,
-		headers: {
-			'Content-Type': 'multipart/form-data'
-		},
-		data: {
-			file: stream
-		}
-	});
-
-	const fullUrl = res.data.data.file.url.full;
-	const res_ = await axios({
-		method: 'GET',
-		url: fullUrl,
-		httpsAgent: agent,
-		headers: {
-			"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.43"
-		}
-	});
-
-	const downloadUrl = res_.data.match(/id="download-url"(?:.|\n)*?href="(.+?)"/)[1];
-	res.data.data.file.url.download = downloadUrl;
-
-	return res.data;
-}
-
-const drive = {
-	default: driveApi,
-	parentID: "",
-	async uploadFile(fileName, mimeType, file) {
-		if (!file && typeof fileName === "string") {
-			file = mimeType;
-			mimeType = undefined;
-		}
-		let response;
-		try {
-			response = (await driveApi.files.create({
-				resource: {
-					name: fileName,
-					parents: [this.parentID]
-				},
-				media: {
-					mimeType,
-					body: file
-				},
-				fields: "*"
-			})).data;
-		}
-		catch (err) {
-			throw new Error(err.errors.map(e => e.message).join("\n"));
-		}
-		await utils.drive.makePublic(response.id);
-		return response;
-	},
-
-	async deleteFile(id) {
-		if (!id || typeof id !== "string")
-			throw new Error('The first argument (id) must be a string');
-		try {
-			await driveApi.files.delete({
-				fileId: id
-			});
-			return true;
-		}
-		catch (err) {
-			throw new Error(err.errors.map(e => e.message).join("\n"));
-		}
-	},
-
-	getUrlDownload(id = "") {
-		if (!id || typeof id !== "string")
-			throw new Error('The first argument (id) must be a string');
-		return `https://docs.google.com/uc?id=${id}&export=download&confirm=t${googleApiKey ? `&key=${googleApiKey}` : ''}`;
-	},
-
-	async getFile(id, responseType) {
-		if (!id || typeof id !== "string")
-			throw new Error('The first argument (id) must be a string');
-		if (!responseType)
-			responseType = "arraybuffer";
-		if (typeof responseType !== "string")
-			throw new Error('The second argument (responseType) must be a string');
-
-		const response = await driveApi.files.get({
-			fileId: id,
-			alt: 'media'
-		}, {
-			responseType
-		});
-		const headersResponse = response.headers;
-		const fileName = headersResponse["content-disposition"]?.split('filename="')[1]?.split('"')[0] || `${utils.randomString(10)}.${utils.getExtFromMimeType(headersResponse["content-type"])}`;
-
-		if (responseType == "arraybuffer")
-			return Buffer.from(response.data);
-		else if (responseType == "stream")
-			response.data.path = fileName;
-
-		const file = response.data;
-
-		return file;
-	},
-
-	async getFileName(id) {
-		if (!id || typeof id !== "string")
-			throw new Error('The first argument (id) must be a string');
-		const { fileNames: tempFileNames } = global.temp.filesOfGoogleDrive;
-		if (tempFileNames[id])
-			return tempFileNames[id];
-		try {
-			const { data: response } = await driveApi.files.get({
-				fileId: id,
-				fields: "name"
-			});
-			tempFileNames[id] = response.name;
-			return response.name;
-		}
-		catch (err) {
-			throw new Error(err.errors.map(e => e.message).join("\n"));
-		}
-	},
-
-	async makePublic(id) {
-		if (!id || typeof id !== "string")
-			throw new Error('The first argument (id) must be a string');
-		try {
-			await driveApi.permissions.create({
-				fileId: id,
-				requestBody: {
-					role: 'reader',
-					type: 'anyone'
-				}
-			});
-			return id;
-		}
-		catch (err) {
-			const error = new Error(err.errors.map(e => e.message).join("\n"));
-			error.name = 'CAN\'T_MAKE_PUBLIC';
-			throw new Error(err.errors.map(e => e.message).join("\n"));
-		}
-	},
-
-	async checkAndCreateParentFolder(folderName) {
-		if (!folderName || typeof folderName !== "string")
-			throw new Error('The first argument (folderName) must be a string');
-		let parentID;
-		const { data: findParentFolder } = await driveApi.files.list({
-			q: `name="${folderName}" and mimeType="application/vnd.google-apps.folder" and trashed=false`,
-			fields: '*'
-		});
-		const parentFolder = findParentFolder.files.find(i => i.ownedByMe);
-		if (!parentFolder) {
-			const { data } = await driveApi.files.create({
-				requestBody: {
-					name: folderName,
-					mimeType: 'application/vnd.google-apps.folder'
-				}
-			});
-			await driveApi.permissions.create({
-				fileId: data.id,
-				requestBody: {
-					role: 'reader',
-					type: 'anyone'
-				}
-			});
-			parentID = data.id;
-		}
-		else if (!parentFolder.shared) {
-			await driveApi.permissions.create({
-				fileId: parentFolder.id,
-				requestBody: {
-					role: 'reader',
-					type: 'anyone'
-				}
-			});
-			parentID = parentFolder.data.id;
-		}
-		else
-			parentID = parentFolder.id;
-		return parentID;
-	}
-};
-
 class GoatBotApis {
 	constructor(apiKey) {
 		this.apiKey = apiKey;
@@ -1066,9 +861,7 @@ const utils = {
 	Prism,
 	translate,
 	shortenURL,
-	uploadZippyshare,
 	uploadImgbb,
-	drive,
 
 	GoatBotApis
 };

@@ -1,24 +1,20 @@
+/*
+* original author : @ntkhang03
+* refactor for nexus-fca, cleaned garbage and simplified by : @tas33n
+*/
+
 // set bash title
 process.stdout.write("\x1b]2;Goat Bot V2 - Made by NTKhang\x1b\x5c");
 const defaultRequire = require;
-
-function decode(text) {
-	text = Buffer.from(text, 'hex').toString('utf-8');
-	text = Buffer.from(text, 'hex').toString('utf-8');
-	text = Buffer.from(text, 'base64').toString('utf-8');
-	return text;
-}
 
 const gradient = defaultRequire("gradient-string");
 const axios = defaultRequire("axios");
 const path = defaultRequire("path");
 const readline = defaultRequire("readline");
 const fs = defaultRequire("fs-extra");
-const toptp = defaultRequire("totp-generator");
-const login = defaultRequire(`${process.cwd()}/fb-chat-api`);
+const login = defaultRequire(`nexus-fca`);
 const qr = new (defaultRequire("qrcode-reader"));
 const Canvas = defaultRequire("canvas");
-const https = defaultRequire("https");
 
 async function getName(userID) {
 	try {
@@ -30,22 +26,10 @@ async function getName(userID) {
 	}
 }
 
-
-function compareVersion(version1, version2) {
-	const v1 = version1.split(".");
-	const v2 = version2.split(".");
-	for (let i = 0; i < 3; i++) {
-		if (parseInt(v1[i]) > parseInt(v2[i]))
-			return 1; // version1 > version2
-		if (parseInt(v1[i]) < parseInt(v2[i]))
-			return -1; // version1 < version2
-	}
-	return 0; // version1 = version2
-}
-
 const { writeFileSync, readFileSync, existsSync, watch } = require("fs-extra");
 const handlerWhenListenHasError = require("./handlerWhenListenHasError.js");
 const checkLiveCookie = require("./checkLiveCookie.js");
+const { dir } = require("console");
 const { callbackListenTime, storage5Message } = global.GoatBot;
 const { log, logColor, getPrefix, createOraDots, jsonStringifyColor, getText, convertTime, colors, randomString } = global.utils;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -77,10 +61,10 @@ const titles = [
 		"█▄█ █▄█ █▀█ ░█░  █▄█ █▄█ ░█░  ▀▄▀ █▄"
 	],
 	[
-		"G O A T B O T  V 2 @" + currentVersion
+		"G O A T B O T  V 2 - Legacy Edition@" + currentVersion
 	],
 	[
-		"GOATBOT V2"
+		"GOATBOT V2 - Legacy Edition @" + currentVersion
 	]
 ];
 const maxWidth = process.stdout.columns;
@@ -216,12 +200,6 @@ function responseUptimeError(req, res) {
 	});
 }
 
-function checkAndTrimString(string) {
-	if (typeof string == "string")
-		return string.trim();
-	return string;
-}
-
 function filterKeysAppState(appState) {
 	return appState.filter(item => ["c_user", "xs", "datr", "fr", "sb", "i_user"].includes(item.key));
 }
@@ -234,121 +212,6 @@ global.statusAccountBot = 'good';
 let changeFbStateByCode = false;
 let latestChangeContentAccount = fs.statSync(dirAccount).mtimeMs;
 let dashBoardIsRunning = false;
-
-
-async function getAppStateFromEmail(spin = { _start: () => { }, _stop: () => { } }, facebookAccount) {
-	const { email, password, userAgent, proxy } = facebookAccount;
-	const getFbstate = require(process.env.NODE_ENV === 'development' ? "./getFbstate1.dev.js" : "./getFbstate1.js");
-	let code2FATemp;
-	let appState;
-	try {
-		try {
-			appState = await getFbstate(checkAndTrimString(email), checkAndTrimString(password), userAgent, proxy);
-			spin._stop();
-		}
-		catch (err) {
-			if (err.continue) {
-				let tryNumber = 0;
-				let isExit = false;
-
-				await (async function submitCode(message) {
-					if (message && isExit) {
-						spin._stop();
-						log.error("LOGIN FACEBOOK", message);
-						process.exit();
-					}
-
-					if (message) {
-						spin._stop();
-						log.warn("LOGIN FACEBOOK", message);
-					}
-
-					if (facebookAccount["2FASecret"] && tryNumber == 0) {
-						switch (['.png', '.jpg', '.jpeg'].some(i => facebookAccount["2FASecret"].endsWith(i))) {
-							case true:
-								code2FATemp = (await qr.readQrCode(`${process.cwd()}/${facebookAccount["2FASecret"]}`)).replace(/.*secret=(.*)&digits.*/g, '$1');
-								break;
-							case false:
-								code2FATemp = facebookAccount["2FASecret"];
-								break;
-						}
-					}
-					else {
-						spin._stop();
-						code2FATemp = await input("> Enter 2FA code or secret: ");
-						readline.moveCursor(process.stderr, 0, -1);
-						readline.clearScreenDown(process.stderr);
-					}
-
-					const code2FA = isNaN(code2FATemp) ?
-						toptp(
-							code2FATemp.normalize("NFD")
-								.toLowerCase()
-								.replace(/[\u0300-\u036f]/g, "")
-								.replace(/[đ|Đ]/g, (x) => x == "đ" ? "d" : "D")
-								.replace(/\(|\)|\,/g, "")
-								.replace(/ /g, "")
-						) :
-						code2FATemp;
-					spin._start();
-					try {
-						appState = JSON.parse(JSON.stringify(await err.continue(code2FA)));
-						appState = appState.map(item => ({
-							key: item.key,
-							value: item.value,
-							domain: item.domain,
-							path: item.path,
-							hostOnly: item.hostOnly,
-							creation: item.creation,
-							lastAccessed: item.lastAccessed
-						})).filter(item => item.key);
-						spin._stop();
-					}
-					catch (err) {
-						tryNumber++;
-						if (!err.continue)
-							isExit = true;
-						await submitCode(err.message);
-					}
-				})(err.message);
-			}
-			else
-				throw err;
-		}
-	}
-	catch (err) {
-		const loginMbasic = require(process.env.NODE_ENV === 'development' ? "./loginMbasic.dev.js" : "./loginMbasic.js");
-		if (facebookAccount["2FASecret"]) {
-			switch (['.png', '.jpg', '.jpeg'].some(i => facebookAccount["2FASecret"].endsWith(i))) {
-				case true:
-					code2FATemp = (await qr.readQrCode(`${process.cwd()}/${facebookAccount["2FASecret"]}`)).replace(/.*secret=(.*)&digits.*/g, '$1');
-					break;
-				case false:
-					code2FATemp = facebookAccount["2FASecret"];
-					break;
-			}
-		}
-
-		appState = await loginMbasic({
-			email,
-			pass: password,
-			twoFactorSecretOrCode: code2FATemp,
-			userAgent,
-			proxy
-		});
-
-		appState = appState.map(item => {
-			item.key = item.name;
-			delete item.name;
-			return item;
-		});
-		appState = filterKeysAppState(appState);
-	}
-
-	global.GoatBot.config.facebookAccount['2FASecret'] = code2FATemp || "";
-	writeFileSync(global.client.dirConfig, JSON.stringify(global.GoatBot.config, null, 2));
-	return appState;
-}
 
 function isNetScapeCookie(cookie) {
 	if (typeof cookie !== 'string')
@@ -399,7 +262,7 @@ let spin;
 async function getAppStateToLogin(loginWithEmail) {
 	let appState = [];
 	if (loginWithEmail)
-		return await getAppStateFromEmail(undefined, facebookAccount);
+		return await login(facebookAccount);
 	if (!existsSync(dirAccount))
 		return log.error("LOGIN FACEBOOK", getText('login', 'notFoundDirAccount', colors.green(dirAccount)));
 	const accountText = readFileSync(dirAccount, "utf8");
@@ -490,11 +353,6 @@ async function getAppStateToLogin(loginWithEmail) {
 						lastAccessed: new Date().toISOString()
 					}))
 					.filter(i => i.key && i.value && i.key != "x-referer");
-			}
-			if (!await checkLiveCookie(appState.map(i => i.key + "=" + i.value).join("; "), facebookAccount.userAgent)) {
-				const error = new Error("Cookie is invalid");
-				error.name = "COOKIE_INVALID";
-				throw error;
 			}
 		}
 	}
@@ -592,7 +450,7 @@ async function getAppStateToLogin(loginWithEmail) {
 		spin._start();
 
 		try {
-			appState = await getAppStateFromEmail(spin, facebookAccount);
+			appState = await login(facebookAccount);
 			spin._stop();
 		}
 		catch (err) {
@@ -625,13 +483,6 @@ function stopListening(keyListen) {
 
 async function startBot(loginWithEmail) {
 	console.log(colors.hex("#f5ab00")(createLine("START LOGGING IN", true)));
-	const currentVersion = require("../../package.json").version;
-	const tooOldVersion = (await axios.get("https://raw.githubusercontent.com/ntkhang03/Goat-Bot-V2-Storage/main/tooOldVersions.txt")).data || "0.0.0";
-	// nếu version cũ hơn
-	if ([-1, 0].includes(compareVersion(currentVersion, tooOldVersion))) {
-		log.err("VERSION", getText('version', 'tooOldVersion', colors.yellowBright('node update')));
-		process.exit();
-	}
 	/* { CHECK ORIGIN CODE } */
 
 	if (global.GoatBot.Listening)
@@ -669,7 +520,7 @@ async function startBot(loginWithEmail) {
 					setTimeout(async function refreshCookie() {
 						try {
 							log.info("REFRESH COOKIE", getText('login', 'refreshCookie'));
-							const appState = await getAppStateFromEmail(undefined, facebookAccount);
+							const appState = await login(facebookAccount);
 							if (facebookAccount.i_user)
 								pushI_user(appState, facebookAccount.i_user);
 							changeFbStateByCode = true;
@@ -697,20 +548,6 @@ async function startBot(loginWithEmail) {
 				if (facebookAccount.email && facebookAccount.password) {
 					return startBot(true);
 				}
-				// —————————— CHECK DASHBOARD —————————— //
-				if (global.GoatBot.config.dashBoard?.enable == true) {
-					try {
-						await require("../../dashboard/app.js")(null);
-						log.info("DASHBOARD", getText('login', 'openDashboardSuccess'));
-					}
-					catch (err) {
-						log.err("DASHBOARD", getText('login', 'openDashboardError'), err);
-					}
-					return;
-				}
-				else {
-					process.exit();
-				}
 			}
 
 			global.GoatBot.fcaApi = api;
@@ -725,63 +562,7 @@ async function startBot(loginWithEmail) {
 			log.info("PREFIX", global.GoatBot.config.prefix);
 			log.info("LANGUAGE", global.GoatBot.config.language);
 			log.info("BOT NICK NAME", global.GoatBot.config.nickNameBot || "GOAT BOT");
-			// ———————————————————— GBAN ————————————————————— //
-			let dataGban;
 
-			try {
-				// convert to promise
-				const item = await axios.get("https://raw.githubusercontent.com/ntkhang03/Goat-Bot-V2-Gban/master/gban.json");
-				dataGban = item.data;
-
-				// ————————————————— CHECK BOT ————————————————— //
-				const botID = api.getCurrentUserID();
-				if (dataGban.hasOwnProperty(botID)) {
-					if (!dataGban[botID].toDate) {
-						log.err('GBAN', getText('login', 'gbanMessage', dataGban[botID].date, dataGban[botID].reason, dataGban[botID].date));
-						hasBanned = true;
-					}
-					else {
-						const currentDate = (new Date((await axios.get("http://worldtimeapi.org/api/timezone/UTC")).data.utc_datetime)).getTime();
-						if (currentDate < (new Date(dataGban[botID].date)).getTime()) {
-							log.err('GBAN', getText('login', 'gbanMessage', dataGban[botID].date, dataGban[botID].reason, dataGban[botID].date, dataGban[botID].toDate));
-							hasBanned = true;
-						}
-					}
-				}
-				// ———————————————— CHECK ADMIN ———————————————— //
-				for (const idad of global.GoatBot.config.adminBot) {
-					if (dataGban.hasOwnProperty(idad)) {
-						if (!dataGban[idad].toDate) {
-							log.err('GBAN', getText('login', 'gbanMessage', dataGban[idad].date, dataGban[idad].reason, dataGban[idad].date));
-							hasBanned = true;
-						}
-						else {
-							const currentDate = (new Date((await axios.get("http://worldtimeapi.org/api/timezone/UTC")).data.utc_datetime)).getTime();
-							if (currentDate < (new Date(dataGban[idad].date)).getTime()) {
-								log.err('GBAN', getText('login', 'gbanMessage', dataGban[idad].date, dataGban[idad].reason, dataGban[idad].date, dataGban[idad].toDate));
-								hasBanned = true;
-							}
-						}
-					}
-				}
-				if (hasBanned == true)
-					process.exit();
-			}
-			catch (e) {
-				console.log(e);
-				log.err('GBAN', getText('login', 'checkGbanError'));
-				process.exit();
-			}
-			// ———————————————— NOTIFICATIONS ———————————————— //
-			let notification;
-			try {
-				const getNoti = await axios.get("https://raw.githubusercontent.com/ntkhang03/Goat-Bot-V2-Gban/master/notification.txt");
-				notification = getNoti.data;
-			}
-			catch (err) {
-				log.err("ERROR", "Can't get notifications data");
-				process.exit();
-			}
 			if (global.GoatBot.config.autoRefreshFbstate == true) {
 				changeFbStateByCode = true;
 				try {
@@ -793,10 +574,7 @@ async function startBot(loginWithEmail) {
 				}
 				setTimeout(() => changeFbStateByCode = false, 1000);
 			}
-			if (hasBanned == true) {
-				log.err('GBAN', getText('login', 'youAreBanned'));
-				process.exit();
-			}
+
 			// ——————————————————— LOAD DATA ——————————————————— //
 			const { threadModel, userModel, dashBoardModel, globalModel, threadsData, usersData, dashBoardData, globalData, sequelize } = await require(process.env.NODE_ENV === 'development' ? "./loadData.dev.js" : "./loadData.js")(api, createLine);
 			// ————————————————— CUSTOM SCRIPTS ————————————————— //
@@ -887,7 +665,6 @@ async function startBot(loginWithEmail) {
 					log.master("ADMINBOT", `[${++i}] ${uid}`);
 				}
 			}
-			log.master("NOTIFICATION", (notification || "").trim());
 			log.master("SUCCESS", getText('login', 'runBot'));
 			log.master("LOAD TIME", `${convertTime(Date.now() - global.GoatBot.startTime)}`);
 			logColor("#f5ab00", createLine("COPYRIGHT"));
@@ -1052,17 +829,6 @@ async function startBot(loginWithEmail) {
 						event.participantIDs = participantIDs_;
 				}
 
-				if ((event.senderID && dataGban[event.senderID] || event.userID && dataGban[event.userID])) {
-					if (event.body && event.threadID) {
-						const prefix = getPrefix(event.threadID);
-						if (event.body.startsWith(prefix))
-							return api.sendMessage(getText('login', 'userBanned'), event.threadID);
-						return;
-					}
-					else
-						return;
-				}
-
 				const handlerAction = require("../handler/handlerAction.js")(api, threadModel, userModel, dashBoardModel, globalModel, usersData, threadsData, dashBoardData, globalData);
 
 				if (hasBanned === false)
@@ -1083,7 +849,7 @@ async function startBot(loginWithEmail) {
 			global.GoatBot.Listening = api.listenMqtt(createCallBackListen());
 			global.GoatBot.callBackListen = callBackListen;
 			// ——————————————————— UPTIME ——————————————————— //
-			if (global.GoatBot.config.serverUptime.enable == true && !global.GoatBot.config.dashBoard?.enable && !global.serverUptimeRunning) {
+			if (global.GoatBot.config.serverUptime.enable == true) {
 				const http = require('http');
 				const express = require('express');
 				const app = express();
