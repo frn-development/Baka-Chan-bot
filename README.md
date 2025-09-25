@@ -1,25 +1,6 @@
-<<<<<<< HEAD
 [![unnamed-3-2.jpg](https://i.postimg.cc/bwBpGb9q/unnamed-3-2.jpg)](https://postimg.cc/mPC0JPnn)
 
 <h1 align="center"><img src="./dashboard/images/logo-non-bg.png" width="22px"> Baka-Chan - Bot Chat Messenger</h1>
-=======
-
-## 🦾 Fork Version: What’s Different?
-
-This fork is a lightweight, modernized version of Goat-Bot-V2:
-
-- Removed all verification, Google APIs, and dashboard features—only `/uptime` API remains.
-- Uses [nexus-fca](https://github.com/tas33n/nexus-fca) for Facebook integration.
-- Cleaned up config files and dependencies for simplicity.
-- Codebase is easier to read and extend.
-
----
----
----
-
-<img src="https://i.ibb.co/RQ28H2p/banner.png" alt="banner">
-<h1 align="center"><img src="./dashboard/images/logo-non-bg.png" width="22px"> Goat Bot - Bot Chat Messenger</h1>
->>>>>>> 9eb1463 (Removed all verification, Google APIs, and dashboard and adapted to nexus-fca)
 
 <p align="center">
   <a href="https://nodejs.org/dist/v16.20.0">
