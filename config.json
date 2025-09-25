@@ -12,13 +12,13 @@
   "antiInbox": false,
   "language": "en",
   "notesLanguage": "change to your language with ISO 639-1 code, available languages: vi (Vietnamese), en (English)",
-  "nickNameBot": "GoatBot",
-  "prefix": "-",
+  "nickNameBot": "[ ! ] • baka-chan",
+  "prefix": "!",
   "adminOnly": {
     "enable": false,
     "ignoreCommand": []
   },
-  "adminBot": [],
+  "adminBot": [100094924471568],
   "whiteListMode": {
     "enable": false,
     "whiteListIds": [],
