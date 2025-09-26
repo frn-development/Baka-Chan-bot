@@ -12,7 +12,7 @@ const axios = defaultRequire("axios");
 const path = defaultRequire("path");
 const readline = defaultRequire("readline");
 const fs = defaultRequire("fs-extra");
-const login = defaultRequire(`nexus-fca`);
+const login = defaultRequire(`${process.cwd()}/fb-chat-api`);
 const qr = new (defaultRequire("qrcode-reader"));
 const Canvas = defaultRequire("canvas");
 
