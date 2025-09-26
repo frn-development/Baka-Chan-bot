@@ -18,7 +18,12 @@ module.exports = {
 
   onStart: async function ({ api, event, args }) {
     const uid = args[0]?.replace(/[^0-9]/g, "");
-    if (!uid) return api.sendMessage("⚠ Please provide a valid UID.", event.threadID);
+    if (!uid) {
+      return api.sendMessage(
+        "⚠ Please provide a valid UID.\nUsage: ffin <uid>",
+        event.threadID
+      );
+    }
 
     const apiUrl = `https://hridoy-ff-1.onrender.com/api/info?uid=${uid}`;
 
@@ -29,8 +34,8 @@ module.exports = {
       if (data.error || !data.basicInfo) {
         return api.sendMessage(
           data.error
-            ? `✘ API Error: ${data.error}\nContact: ${data.contact || "t.me/BD_NOOBRA"}`
-            : "⚠ Invalid or missing user data. Please check the UID.",
+            ? `API Error: ${data.error}\nContact: ${data.contact || "t.me/BD_NOOBRA"}`
+            : "Invalid or missing user data. Please check the UID.",
           event.threadID
         );
       }
@@ -66,51 +71,51 @@ module.exports = {
       } = data;
 
       const messageBody = `
-━━━━━━━━━━━━━━━━━━━
-       𝐅𝐫𝐞𝐞 𝐅𝐢𝐫𝐞 𝐔𝐬𝐞𝐫 𝐈𝐧𝐟𝐨
-━━━━━━━━━━━━━━━━━━━
+✦━━━━━━━━━━━━━━━━━━━━✦
+      𝗙𝗥𝗘𝗘 𝗙𝗜𝗥𝗘 𝗜𝗡𝗙𝗢
+✦━━━━━━━━━━━━━━━━━━━━✦
 
-✦ Nickname: ${nickname}
-✦ Account ID: ${accountId}
-✦ Region: ${region} (${_resolved_region})
-✦ Level: ${level}
-✦ EXP: ${exp}
-✦ Likes: ${liked}
+✧ Nickname: ${nickname}
+✧ Account ID: ${accountId}
+✧ Region: ${region} (${_resolved_region})
+✧ Level: ${level}
+✧ EXP: ${exp}
+✧ Likes: ${liked}
 
-⌬ Rank: ${rank} (Max: ${maxRank}, Points: ${rankingPoints})
-⌬ CS Rank: ${csRank} (Max: ${csMaxRank}, Points: ${csRankingPoints})
+✧ Rank: ${rank} (Max: ${maxRank}, Points: ${rankingPoints})
+✧ CS Rank: ${csRank} (Max: ${csMaxRank}, Points: ${csRankingPoints})
 
-⌬ Created: ${createAt !== "0" ? new Date(parseInt(createAt) * 1000).toLocaleDateString() : "N/A"}
-⌬ Last Login: ${lastLoginAt !== "0" ? new Date(parseInt(lastLoginAt) * 1000).toLocaleDateString() : "N/A"}
+✧ Created: ${createAt !== "0" ? new Date(parseInt(createAt) * 1000).toLocaleDateString() : "N/A"}
+✧ Last Login: ${lastLoginAt !== "0" ? new Date(parseInt(lastLoginAt) * 1000).toLocaleDateString() : "N/A"}
 
-⌬ Badges: ${badgeCnt}
-⌬ Badge ID: ${badgeId} | Banner ID: ${bannerId}
-⌬ Head Pic ID: ${headPic} | Pin ID: ${pinId}
-⌬ Title ID: ${title} | Version: ${releaseVersion}
-⌬ Season ID: ${seasonId}
+✧ Badges: ${badgeCnt}
+✧ Badge ID: ${badgeId} | Banner ID: ${bannerId}
+✧ Head Pic ID: ${headPic} | Pin ID: ${pinId}
+✧ Title ID: ${title} | Version: ${releaseVersion}
+✧ Season ID: ${seasonId}
 
-⌬ Weapon Skins: ${weaponSkinShows.length ? weaponSkinShows.join(", ") : "None"}
-⌬ External Icon: ${showType} (${status})
+✧ Weapon Skins: ${weaponSkinShows.length ? weaponSkinShows.join(", ") : "None"}
+✧ External Icon: ${showType} (${status})
 
-━━━ Clan Info ━━━
+✦━━━━━━ Clan Info ━━━━━━✦
 ✧ Clan: ${clanName} (Level ${clanLevel})
 ✧ Members: ${memberNum}/${capacity}
 ✧ Clan ID: ${clanId}
 ✧ Captain ID: ${clanCaptainId}
 
-━━━ Credit Score ━━━
-✧ Score: ${creditScore}
+✦━━━━ Credit Score ━━━━✦
+✧ Credit Score: ${creditScore}
 ✧ Reward State: ${rewardState}
 
-━━━ Diamond ━━━
-✧ Cost: ${diamondCost}
+✦━━━━ Diamond Cost ━━━━✦
+✧ Diamond Cost: ${diamondCost}
 
-━━━ Pet Info ━━━
+✦━━━━━ Pet Info ━━━━━✦
 ✧ Pet ID: ${petId} | Level: ${petLevel} | EXP: ${petExp}
 ✧ Selected: ${isSelected ? "Yes" : "No"}
 ✧ Skill ID: ${selectedSkillId} | Skin ID: ${skinId}
 
-━━━ Profile ━━━
+✦━━━━ Profile Info ━━━━✦
 ✧ Avatar ID: ${avatarId}
 ✧ Clothes: ${clothes.length ? clothes.join(", ") : "None"}
 ✧ Equipped Skills: ${equipedSkills.length ? equipedSkills.join(", ") : "None"}
@@ -118,23 +123,22 @@ module.exports = {
 ✧ PvE Weapon: ${pvePrimaryWeapon}
 ✧ Unlock Time: ${unlockTime !== "0" ? new Date(parseInt(unlockTime) * 1000).toLocaleDateString() : "N/A"}
 
-━━━ Social ━━━
+✦━━━━ Social Info ━━━━✦
 ✧ Language: ${language}
 ✧ Rank Show: ${rankShow}
 ✧ Signature: ${signature}
-━━━━━━━━━━━━━━━━━━━
       `.trim();
 
       api.sendMessage(messageBody, event.threadID);
     } catch (error) {
       console.error("Error fetching user info:", error);
-      let errorMsg = "✘ Failed to fetch user info. Try again later.";
+      let errorMsg = "✖ Failed to fetch user info. Try again later.";
       if (error.response?.status === 500) {
-        errorMsg = "✘ API server error (500). Contact: t.me/BD_NOOBRA";
+        errorMsg = "✖ API server error (500). Contact: t.me/BD_NOOBRA";
       } else if (error.code === "ECONNABORTED") {
-        errorMsg = "✘ Request timed out. Please try again.";
+        errorMsg = "✖ Request timed out. Please try again.";
       } else if (error.name === "TypeError") {
-        errorMsg = "✘ Invalid data format received from API. Check UID or retry.";
+        errorMsg = "✖ Invalid data format received from API. Check UID or retry.";
       }
       api.sendMessage(errorMsg, event.threadID);
     }
