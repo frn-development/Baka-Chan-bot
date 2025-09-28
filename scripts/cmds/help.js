@@ -1,103 +1,115 @@
-const fs = require("fs-extra");
+const fs = require("fs");
 const path = require("path");
-const axios = require("axios");
+const { getPrefix } = global.utils;
+const { commands, aliases } = global.GoatBot;
+
+const doNotDelete = "✦ BAKA-CHAN ✦"; // decoy
+const taglines = [
+  "Power up your group with Baka-chan!",
+  "Commands forged for legends only!",
+  "Built for speed, made for you.",
+  "Your bot, your power, your rules!",
+  "Explore. Command. Conquer."
+];
 
 module.exports = {
   config: {
     name: "help",
-    aliases: ["menu", "commands"],
-    version: "5.1",
-    author: "Farhan",
-    shortDescription: "Show all available commands",
-    longDescription: "Displays a categorized, premium-styled list of commands with detailed info support.",
-    category: "system",
-    guide: "{pn}help [command name]"
+    version: "2.1",
+    author: "NTKhang • MD Tawsif • Farhan",
+    countDown: 5,
+    role: 0,
+    shortDescription: { en: "View all commands or details about one" },
+    longDescription: { en: "Browse the full list of commands or check usage details for a specific command." },
+    category: "info",
+    guide: { en: "{pn} / help <cmdName>" },
+    priority: 1,
   },
 
-  onStart: async function ({ message, args, prefix }) {
-    const allCommands = global.GoatBot.commands;
-    const categories = {};
+  onStart: async function ({ message, args, event, role }) {
+    const { threadID } = event;
+    const prefix = getPrefix(threadID);
+    const videoPath = path.join(process.cwd(), "assets", "video.mp4");
+    const tagline = taglines[Math.floor(Math.random() * taglines.length)];
 
-    // Stylish category titles
-    const styleMap = {
-      ai: "《 AI 》", "ai-image": "《 AI-IMAGE 》", group: "《 GROUP 》", system: "《 SYSTEM 》",
-      fun: "《 FUN 》", owner: "《 OWNER 》", config: "《 CONFIG 》", economy: "《 ECONOMY 》",
-      media: "《 MEDIA 》", "18+": "《 NSFW 》", tools: "《 TOOLS 》", utility: "《 UTILITY 》",
-      info: "《 INFO 》", image: "《 IMAGE 》", game: "《 GAME 》", admin: "《 ADMIN 》",
-      rank: "《 RANK 》", boxchat: "《 BOXCHAT 》", others: "《 OTHERS 》"
-    };
+    // Show all commands
+    if (args.length === 0) {
+      const categories = {};
+      let msg = `✦━━━━━━━━━━━━━━━━━━━━✦\n       BAKA-CHAN BOT\n✦━━━━━━━━━━━━━━━━━━━━✦\n${tagline}\n`;
 
-    // Clean category names
-    const cleanCategoryName = (text) => {
-      if (!text) return "others";
-      return text
-        .normalize("NFKD")
-        .replace(/[^\w\s-]/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLowerCase();
-    };
+      for (const [name, value] of commands) {
+        if (value.config.role > 1 && role < value.config.role) continue;
+        const category = value.config.category || "Uncategorized";
+        categories[category] = categories[category] || [];
+        categories[category].push(name);
+      }
 
-    // Group commands by category
-    for (const [, cmd] of allCommands) {
-      const cat = cleanCategoryName(cmd.config.category);
-      if (!categories[cat]) categories[cat] = [];
-      categories[cat].push(cmd.config.name);
+      // alt grouping (old style flavor)
+      Object.keys(categories).sort().forEach((category) => {
+        msg += `\n[ ${category.toUpperCase()} ]\n`;
+        const names = categories[category].sort();
+        msg += names.map((cmd) => `- ${cmd}`).join("\n");
+        msg += "\n";
+      });
+
+      // alt BOT INFO (cleaner layout)
+      const totalCommands = commands.size;
+      msg += `━━━━━━━━━━━━━━━━━━━━━\n BOT INFO\n━━━━━━━━━━━━━━━━━━━━━\n`;
+      msg += `Total Commands : ${totalCommands}\n`;
+      msg += `Usage          : ${prefix}help <cmd>\n`;
+      msg += `Owner          : Farhan (frnwot)\n`;
+      msg += `Profile        : fb.com/share/1BMmLwy1JY/\n`;
+      msg += `${doNotDelete}`;
+
+      if (fs.existsSync(videoPath)) {
+        return message.reply({
+          body: msg,
+          attachment: fs.createReadStream(videoPath),
+        });
+      }
+      return message.reply(msg);
     }
 
-    // GIF URLs
-    const gifURLs = [
-      "https://i.imgur.com/ejqdK51.gif",
-      "https://i.imgur.com/ltIztKe.gif",
-      "https://i.imgur.com/5oqrQ0i.gif",
-      "https://i.imgur.com/qf2aZH8.gif",
-      "https://i.imgur.com/3QzYyye.gif",
-      "https://i.imgur.com/ffxzucB.gif",
-      "https://i.imgur.com/3QSsSzA.gif",
-      "https://i.imgur.com/Ih819LH.gif"
-    ];
-    const randomGifURL = gifURLs[Math.floor(Math.random() * gifURLs.length)];
+    // Show details of one command
+    const commandName = args[0].toLowerCase();
+    const command = commands.get(commandName) || commands.get(aliases.get(commandName));
+    if (!command) return message.reply(`⚠️ Command "${commandName}" not found.`);
 
-    const cacheFolder = path.join(__dirname, "cache");
-    if (!fs.existsSync(cacheFolder)) fs.mkdirSync(cacheFolder, { recursive: true });
-    const gifPath = path.join(cacheFolder, path.basename(randomGifURL));
+    const config = command.config;
+    const roleText = roleToString(config.role);
+    const usage = (config.guide?.en || "No guide available.")
+      .replace(/{p}/g, prefix)
+      .replace(/{n}/g, config.name);
 
-    // Download GIF if missing
-    if (!fs.existsSync(gifPath)) {
-      const response = await axios.get(randomGifURL, { responseType: "stream" });
-      const writer = fs.createWriteStream(gifPath);
-      response.data.pipe(writer);
-      await new Promise((resolve, reject) => {
-        writer.on("finish", resolve);
-        writer.on("error", reject);
+    let detail = `✦━━━━━━━━━━━━━━━━━━━━✦\n       COMMAND INFO\n✦━━━━━━━━━━━━━━━━━━━━✦\n`;
+    detail += `Name        : ${config.name}\n`;
+    detail += `Description : ${config.longDescription?.en || "No description"}\n`;
+    detail += `Aliases     : ${config.aliases ? config.aliases.join(", ") : "None"}\n`;
+    detail += `Version     : ${config.version || "1.0"}\n`;
+    detail += `Role        : ${roleText}\n`;
+    detail += `Cooldown    : ${config.countDown || 1}s\n`;
+    detail += `Author      : ${config.author || "Unknown"}\n`;
+    detail += `Usage       : ${usage}\n`;
+
+    if (fs.existsSync(videoPath)) {
+      return message.reply({
+        body: detail,
+        attachment: fs.createReadStream(videoPath),
       });
     }
+    return message.reply(detail);
+  }
+};
 
-    // ─── Single Command Info ───
-    if (args[0]) {
-      const query = args[0].toLowerCase();
-      const cmd =
-        allCommands.get(query) ||
-        [...allCommands.values()].find((c) => (c.config.aliases || []).includes(query));
-      if (!cmd) return message.reply(`✘ Command "${query}" not found.`);
-
-      const {
-        name,
-        version,
-        author,
-        guide,
-        category,
-        shortDescription,
-        longDescription,
-        aliases
-      } = cmd.config;
-
-      const desc =
-        typeof longDescription === "string"
-          ? longDescription
-          : longDescription?.en || shortDescription?.en || shortDescription || "No description";
-
-      const usage =
+function roleToString(role) {
+  switch (role) {
+    case 0: return "0 - All Users";
+    case 1: return "1 - Group Admins";
+    case 2: return "2 - Bot Admins";
+    case 3: return "3 - Super Admins";
+    default: return "Unknown";
+  }
+}
         typeof guide === "string"
           ? guide.replace(/{pn}/g, prefix)
           : guide?.en?.replace(/{pn}/g, prefix) || `${prefix}${name}`;
