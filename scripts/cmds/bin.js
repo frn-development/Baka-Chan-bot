@@ -7,7 +7,7 @@ module.exports = {
     name: "pastebin",
     aliases: ["bin"],
     version: "1.4",
-    author: "NeoKEX", // Keep original author here
+    author: "Farhan"", // Keep original author here
     countDown: 5,
     role: 0,
     shortDescription: "Upload a command's code to Pastebin.",
@@ -41,7 +41,7 @@ module.exports = {
       const { status, raw } = response.data;
       if (status === 0 && raw) {
         // Warning if author was changed
-        if (this.config.author !== "nexo") {
+        if (this.config.author !== "Farhan") {
           console.warn(`⚠️ | Author name modified: ${this.config.author}`);
         }
 
