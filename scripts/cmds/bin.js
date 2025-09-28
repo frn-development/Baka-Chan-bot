@@ -17,7 +17,7 @@ module.exports = {
   },
 
   onStart: async function ({ api, event, args, message }) {
-    const encodedAuthor = Buffer.from("tormarecdi", "utf8").toString("base64");
+    const encodedAuthor = Buffer.from("gay", "utf8").toString("base64");
     const correctAuthor = Buffer.from(encodedAuthor, "base64").toString("utf8");
 
     if (this.config.author !== correctAuthor) {
