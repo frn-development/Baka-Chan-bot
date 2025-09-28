@@ -1,133 +1,139 @@
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
-const { getPrefix } = global.utils;
-const { commands, aliases } = global.GoatBot;
-
-const doNotDelete = "✦ BAKA-CHAN ✦"; // decoy
-const taglines = [
-  " Power up your group with Baka-chan!",
-  " Commands forged for legends only!",
-  " Built for speed, made for you.",
-  " Your bot, your power, your rules!",
-  " Explore. Command. Conquer."
-];
+const axios = require("axios");
 
 module.exports = {
   config: {
     name: "help",
-    version: "2.0",
-    author: "NTKhang • MD Tawsif • Farhan",
-    countDown: 5,
-    role: 0,
-    shortDescription: { en: "View all commands or details about one" },
-    longDescription: { en: "Browse the full list of commands or check detailed usage for a specific one." },
-    category: "info",
-    guide: { en: "{pn} / help <cmdName>" },
-    priority: 1,
+    aliases: ["menu", "commands"],
+    version: "5.1",
+    author: "Farhan",
+    shortDescription: "Show all available commands",
+    longDescription: "Displays a categorized, premium-styled list of commands with detailed info support.",
+    category: "system",
+    guide: "{pn}help [command name]"
   },
 
-  onStart: async function ({ message, args, event, threadsData, role }) {
-    const { threadID } = event;
-    const prefix = getPrefix(threadID);
+  onStart: async function ({ message, args, prefix }) {
+    const allCommands = global.GoatBot.commands;
+    const categories = {};
 
-    const videoPath = path.join(process.cwd(), "assets", "video.mp4");
-    const tagline = taglines[Math.floor(Math.random() * taglines.length)];
+    // Stylish category titles
+    const styleMap = {
+      ai: "《 AI 》", "ai-image": "《 AI-IMAGE 》", group: "《 GROUP 》", system: "《 SYSTEM 》",
+      fun: "《 FUN 》", owner: "《 OWNER 》", config: "《 CONFIG 》", economy: "《 ECONOMY 》",
+      media: "《 MEDIA 》", "18+": "《 NSFW 》", tools: "《 TOOLS 》", utility: "《 UTILITY 》",
+      info: "《 INFO 》", image: "《 IMAGE 》", game: "《 GAME 》", admin: "《 ADMIN 》",
+      rank: "《 RANK 》", boxchat: "《 BOXCHAT 》", others: "《 OTHERS 》"
+    };
 
-    if (args.length === 0) {
-      // Build command list
-      const categories = {};
-      let msg = `
-✦━━━━━━━━━━━━━━━━━━━━✦
-     𝗕𝗔𝗞𝗔-𝗖𝗛𝗔𝗡 𝗕𝗢𝗧 
-✦━━━━━━━━━━━━━━━━━━━━✦
-${tagline}
-`;
+    // Clean category names
+    const cleanCategoryName = (text) => {
+      if (!text) return "others";
+      return text
+        .normalize("NFKD")
+        .replace(/[^\w\s-]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    };
 
-      for (const [name, value] of commands) {
-        if (value.config.role > 1 && role < value.config.role) continue;
-        const category = value.config.category || "Uncategorized";
-        categories[category] = categories[category] || { commands: [] };
-        categories[category].commands.push(name);
-      }
-
-      Object.keys(categories).forEach((category) => {
-        if (category !== "info") {
-          msg += `\n╭── ✦ ${category.toUpperCase()} ✦ ──╮`;
-          const names = categories[category].commands.sort();
-          for (let i = 0; i < names.length; i += 3) {
-            const cmds = names.slice(i, i + 3).map((item) => `✧ ${item}`);
-            msg += `\n│ ${cmds.join("   ")}`;
-          }
-          msg += `\n╰───────────────────╯\n`;
-        }
-      });
-
-      const totalCommands = commands.size;
-      msg += `
-╭── ✦ BOT INFO ✦ ──╮
-│ 📜 Total Cmds: ${totalCommands}
-│ 💡 Usage: ${prefix}help <cmd>
-│ 👑 Owner: Farhan (frnwot)
-│ 🌐 Profile: fb.com/share/1BMmLwy1JY/
-│ ${doNotDelete}
-╰───────────────────╯
-`;
-
-      if (fs.existsSync(videoPath)) {
-        return message.reply({
-          body: msg,
-          attachment: fs.createReadStream(videoPath),
-        });
-      }
-      return message.reply(msg);
-
-    } else {
-      // Show info for a specific command
-      const commandName = args[0].toLowerCase();
-      const command = commands.get(commandName) || commands.get(aliases.get(commandName));
-      if (!command) return message.reply(`⚠️ Command "${commandName}" not found.`);
-
-      const configCommand = command.config;
-      const roleText = roleTextToString(configCommand.role);
-      const author = configCommand.author || "Unknown";
-      const longDescription = configCommand.longDescription?.en || "No description";
-      const guideBody = configCommand.guide?.en || "No guide available.";
-      const usage = guideBody.replace(/{p}/g, prefix).replace(/{n}/g, configCommand.name);
-
-      let response = `
-✦━━━━━━━━━━━━━━━━━━━━✦
-     𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗜𝗡𝗙𝗢 
-✦━━━━━━━━━━━━━━━━━━━━✦
-
-📌 Name: ${configCommand.name}
-📖 Description: ${longDescription}
-📂 Aliases: ${configCommand.aliases ? configCommand.aliases.join(", ") : "None"}
-⚙️ Version: ${configCommand.version || "1.0"}
-🛡️ Role: ${roleText}
-⏱️ Cooldown: ${configCommand.countDown || 1}s
-👤 Author: ${author}
-💡 Usage: ${usage}
-
-✦━━━━━━━━━━━━━━━━━━━━✦
-`;
-
-      if (fs.existsSync(videoPath)) {
-        return message.reply({
-          body: response,
-          attachment: fs.createReadStream(videoPath),
-        });
-      }
-      return message.reply(response);
+    // Group commands by category
+    for (const [, cmd] of allCommands) {
+      const cat = cleanCategoryName(cmd.config.category);
+      if (!categories[cat]) categories[cat] = [];
+      categories[cat].push(cmd.config.name);
     }
+
+    // GIF URLs
+    const gifURLs = [
+      "https://i.imgur.com/ejqdK51.gif",
+      "https://i.imgur.com/ltIztKe.gif",
+      "https://i.imgur.com/5oqrQ0i.gif",
+      "https://i.imgur.com/qf2aZH8.gif",
+      "https://i.imgur.com/3QzYyye.gif",
+      "https://i.imgur.com/ffxzucB.gif",
+      "https://i.imgur.com/3QSsSzA.gif",
+      "https://i.imgur.com/Ih819LH.gif"
+    ];
+    const randomGifURL = gifURLs[Math.floor(Math.random() * gifURLs.length)];
+
+    const cacheFolder = path.join(__dirname, "cache");
+    if (!fs.existsSync(cacheFolder)) fs.mkdirSync(cacheFolder, { recursive: true });
+    const gifPath = path.join(cacheFolder, path.basename(randomGifURL));
+
+    // Download GIF if missing
+    if (!fs.existsSync(gifPath)) {
+      const response = await axios.get(randomGifURL, { responseType: "stream" });
+      const writer = fs.createWriteStream(gifPath);
+      response.data.pipe(writer);
+      await new Promise((resolve, reject) => {
+        writer.on("finish", resolve);
+        writer.on("error", reject);
+      });
+    }
+
+    // ─── Single Command Info ───
+    if (args[0]) {
+      const query = args[0].toLowerCase();
+      const cmd =
+        allCommands.get(query) ||
+        [...allCommands.values()].find((c) => (c.config.aliases || []).includes(query));
+      if (!cmd) return message.reply(`✘ Command "${query}" not found.`);
+
+      const {
+        name,
+        version,
+        author,
+        guide,
+        category,
+        shortDescription,
+        longDescription,
+        aliases
+      } = cmd.config;
+
+      const desc =
+        typeof longDescription === "string"
+          ? longDescription
+          : longDescription?.en || shortDescription?.en || shortDescription || "No description";
+
+      const usage =
+        typeof guide === "string"
+          ? guide.replace(/{pn}/g, prefix)
+          : guide?.en?.replace(/{pn}/g, prefix) || `${prefix}${name}`;
+
+      return message.reply({
+        body:
+          `┏━━━━━━━━━━━━━━━━━┓\n` +
+          `  BAKA-CHAN CMD INFO\n` +
+          `┗━━━━━━━━━━━━━━━━━┛\n\n` +
+          `› Name: ${name}\n` +
+          `› Category: ${category || "Uncategorized"}\n` +
+          `› Description: ${desc}\n` +
+          `› Aliases: ${aliases?.length ? aliases.join(", ") : "None"}\n` +
+          `› Usage: ${usage}\n` +
+          `› Author: ${author || "Unknown"}\n` +
+          `› Version: ${version || "1.0"}`,
+        attachment: fs.createReadStream(gifPath)
+      });
+    }
+
+    // ─── Full Commands Menu ───
+    const formatCommands = (cmds) =>
+      cmds.sort().map((cmd) => `│ ${cmd}`).join("\n");
+
+    let msg = `┏━━━━━━━━━━━━━━━━━━━━━━┓\n        BAKA-CHAN MENU\n┗━━━━━━━━━━━━━━━━━━━━━━┛\n`;
+    const sortedCategories = Object.keys(categories).sort();
+    for (const cat of sortedCategories) {
+      const title = styleMap[cat] || `《 ${cat.toUpperCase()} 》`;
+      msg += `\n${title}\n`;
+      msg += `${formatCommands(categories[cat])}\n`;
+    }
+    msg += `\nUse: ${prefix}help [command name] for details`;
+
+    return message.reply({
+      body: msg,
+      attachment: fs.createReadStream(gifPath)
+    });
   }
 };
-
-function roleTextToString(roleText) {
-  switch (roleText) {
-    case 0: return "0 ✦ All Users";
-    case 1: return "1 ✦ Group Admins";
-    case 2: return "2 ✦ Bot Admins";
-    case 3: return "3 ✦ Super Admins";
-    default: return "Unknown role";
-  }
-}
