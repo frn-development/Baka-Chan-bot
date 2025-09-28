@@ -130,4 +130,4 @@ function roleTextToString(roleText) {
     case 3: return "3 ✦ Super Admins";
     default: return "Unknown role";
   }
-                                     }
+      }
