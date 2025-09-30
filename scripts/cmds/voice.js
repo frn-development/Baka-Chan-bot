@@ -1,97 +1,80 @@
 const axios = require("axios");
-const fs = require("fs-extra");
+const fs = require("fs");
 const path = require("path");
 
-// Cache voice lists per thread for reply system
-const voiceLists = {};
+const voiceRepo =
+  "https://raw.githubusercontent.com/Gtajisan/voice-bot/main/public/";
+
+let cachedVoices = [];
+let lastMessageID = null;
 
 module.exports = {
   config: {
     name: "voice",
-    aliases: ["voices"],
-    version: "1.2",
+    aliases: [],
+    version: "1.0",
     author: "Farhan",
-    prefix: true,
-    description: "List mp3 files from repo and send them only when replying with a number.",
-    category: "media",
-    guide: {
-      en: "{pn}voice → show list\nReply with a number → get that voice"
-    }
+    role: 0,
+    shortDescription: "List and play voices",
+    longDescription: "Fetch .mp3 files from repo and send them on reply",
+    category: "fun",
+    guide: "{pn} voice",
   },
 
-  onStart: async ({ api, event }) => {
-    const threadID = event.threadID;
-    const messageID = event.messageID;
-
+  onStart: async function ({ message }) {
     try {
-      // Fetch mp3 list from GitHub public folder
-      const repoUrl = "https://api.github.com/repos/Gtajisan/voice-bot/contents/public";
-      const res = await axios.get(repoUrl);
-      const mp3Files = res.data.filter(f => f.name.endsWith(".mp3"));
+      // fetch files from repo directory API
+      const { data } = await axios.get(
+        "https://api.github.com/repos/Gtajisan/voice-bot/contents/public"
+      );
 
-      if (!mp3Files.length) {
-        return api.sendMessage("❌ No mp3 files found.", threadID, messageID);
+      const mp3Files = data.filter((f) => f.name.endsWith(".mp3"));
+      cachedVoices = mp3Files.map((f) => f.name);
+
+      if (cachedVoices.length === 0) {
+        return message.reply("❌ No MP3 voices found in repo.");
       }
 
-      const fileList = mp3Files.map(f => ({
-        name: f.name,
-        url: f.download_url
-      }));
-
-      // Build text list
-      let listText = "🎵 Voice List:\n\n";
-      fileList.forEach((f, i) => {
-        listText += `${i + 1}. ${f.name}\n`;
+      // build list
+      let list = "🎵 Voice List:\n\n";
+      cachedVoices.forEach((file, idx) => {
+        list += `${idx + 1}. ${file}\n`;
       });
-      listText += "\n💡 Reply with a number to get that voice.";
+      list += "\n💡 Reply with a number to get that voice.";
 
-      // Send list and save messageID for reply handling
-      api.sendMessage(listText, threadID, (err, info) => {
-        if (!err) {
-          voiceLists[threadID] = {
-            files: fileList,
-            messageID: info.messageID
-          };
-        }
-      }, messageID);
-
+      const sent = await message.reply(list);
+      lastMessageID = sent.messageID;
     } catch (err) {
-      console.error("[voice] Fetch error:", err);
-      return api.sendMessage("❌ Error fetching voices.", threadID, messageID);
+      console.error(err);
+      message.reply("❌ Failed to fetch voices.");
     }
   },
 
-  onReply: async ({ api, event }) => {
-    const threadID = event.threadID;
-    const messageID = event.messageID;
-    const replyMsgID = event.messageReply?.messageID;
+  onReply: async function ({ message, Reply }) {
+    if (Reply.messageID !== lastMessageID) return; // only react to our own list
 
-    const voiceData = voiceLists[threadID];
-    if (!voiceData || replyMsgID !== voiceData.messageID) return;
+    const choice = parseInt(message.body.trim());
+    if (isNaN(choice) || choice < 1 || choice > cachedVoices.length) {
+      return message.reply("❌ Invalid number. Try again.");
+    }
 
-    const num = parseInt(event.body.trim());
-    if (isNaN(num) || num < 1 || num > voiceData.files.length) return;
-
-    const file = voiceData.files[num - 1];
+    const fileName = cachedVoices[choice - 1];
+    const fileUrl = `${voiceRepo}${encodeURIComponent(fileName)}`;
+    const filePath = path.join(__dirname, "tmp", fileName);
 
     try {
-      const tempPath = path.join(__dirname, `voice_${Date.now()}.mp3`);
-      const mp3Res = await axios.get(file.url, { responseType: "arraybuffer" });
-      await fs.writeFile(tempPath, Buffer.from(mp3Res.data));
+      // download mp3
+      const res = await axios.get(fileUrl, { responseType: "arraybuffer" });
+      fs.writeFileSync(filePath, Buffer.from(res.data));
 
-      await new Promise((resolve, reject) => {
-        api.sendMessage({
-          body: `🎤 ${file.name}`,
-          attachment: fs.createReadStream(tempPath)
-        }, threadID, (err) => {
-          fs.unlink(tempPath).catch(() => {});
-          if (err) reject(err);
-          else resolve();
-        }, messageID);
+      await message.reply({
+        attachment: fs.createReadStream(filePath),
       });
+
+      fs.unlinkSync(filePath);
     } catch (err) {
-      console.error("[voice] Send error:", err);
-      api.sendMessage("❌ Failed to send voice.", threadID, messageID);
+      console.error(err);
+      message.reply("❌ Error sending voice.");
     }
-  }
+  },
 };
