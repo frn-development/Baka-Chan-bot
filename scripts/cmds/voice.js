@@ -2,8 +2,8 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
-const voiceRepo =
-  "https://raw.githubusercontent.com/Gtajisan/voice-bot/main/public/";
+const voiceRepoPage = "https://github.com/Gtajisan/voice-bot/tree/main/public";
+const voiceRawBase = "https://raw.githubusercontent.com/Gtajisan/voice-bot/main/public/";
 
 let cachedVoices = [];
 let lastMessageID = null;
@@ -12,24 +12,26 @@ module.exports = {
   config: {
     name: "voice",
     aliases: [],
-    version: "1.0",
+    version: "2.0",
     author: "Farhan",
     role: 0,
     shortDescription: "List and play voices",
-    longDescription: "Fetch .mp3 files from repo and send them on reply",
+    longDescription: "Fetch .mp3 files from GitHub repo and send them when replied",
     category: "fun",
     guide: "{pn} voice",
   },
 
   onStart: async function ({ message }) {
     try {
-      // fetch files from repo directory API
-      const { data } = await axios.get(
-        "https://api.github.com/repos/Gtajisan/voice-bot/contents/public"
-      );
+      // Old fetching system: scrape HTML for mp3 links
+      const { data } = await axios.get(voiceRepoPage);
+      const regex = /title="([^"]+\.mp3)"/g;
 
-      const mp3Files = data.filter((f) => f.name.endsWith(".mp3"));
-      cachedVoices = mp3Files.map((f) => f.name);
+      cachedVoices = [];
+      let match;
+      while ((match = regex.exec(data)) !== null) {
+        cachedVoices.push(match[1]);
+      }
 
       if (cachedVoices.length === 0) {
         return message.reply("❌ No MP3 voices found in repo.");
@@ -46,12 +48,12 @@ module.exports = {
       lastMessageID = sent.messageID;
     } catch (err) {
       console.error(err);
-      message.reply("❌ Failed to fetch voices.");
+      message.reply("❌ Failed to fetch voices (old system).");
     }
   },
 
   onReply: async function ({ message, Reply }) {
-    if (Reply.messageID !== lastMessageID) return; // only react to our own list
+    if (Reply.messageID !== lastMessageID) return;
 
     const choice = parseInt(message.body.trim());
     if (isNaN(choice) || choice < 1 || choice > cachedVoices.length) {
@@ -59,7 +61,7 @@ module.exports = {
     }
 
     const fileName = cachedVoices[choice - 1];
-    const fileUrl = `${voiceRepo}${encodeURIComponent(fileName)}`;
+    const fileUrl = `${voiceRawBase}${encodeURIComponent(fileName)}`;
     const filePath = path.join(__dirname, "tmp", fileName);
 
     try {
