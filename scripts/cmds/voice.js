@@ -6,10 +6,10 @@ module.exports = {
   config: {
     name: 'voice',
     aliases: ['voices'],
-    version: '1.3',
+    version: '2.0',
     author: 'Farhan',
     prefix: true,
-    description: 'List and send voices from GitHub repo using commit names, supports reply-to-user.',
+    description: 'List and send voices from GitHub repo, works reliably with replies.',
     category: 'media',
     guide: {
       en: '{pn}voice - list all voices\n{pn}voice <number> - send selected voice (reply to a message to send to that user)'
@@ -30,31 +30,29 @@ module.exports = {
         }, messageID);
       });
 
-      const repoOwner = 'Gtajisan';
-      const repoName = 'voice-bot';
-      const folderPath = 'public';
-
-      // Fetch MP3 files
-      const res = await axios.get(`https://api.github.com/repos/${repoOwner}/${repoName}/contents/${folderPath}`);
+      // GitHub public folder
+      const repoUrl = 'https://api.github.com/repos/Gtajisan/voice-bot/contents/public';
+      const res = await axios.get(repoUrl);
       const mp3Files = res.data.filter(file => file.name.endsWith('.mp3'));
-      if (!mp3Files.length) return api.editMessage('❌ No voices found.', statusMsg.messageID);
 
-      // Fetch commit names
-      const fileList = [];
-      for (const file of mp3Files) {
-        const commits = await axios.get(`https://api.github.com/repos/${repoOwner}/${repoName}/commits?path=${folderPath}/${encodeURIComponent(file.name)}&per_page=1`);
-        const commitMsg = commits.data[0]?.commit?.message || file.name;
-        fileList.push({ name: commitMsg, url: file.download_url });
+      if (!mp3Files.length) {
+        return api.editMessage('❌ No voices found.', statusMsg.messageID);
       }
 
-      // List all voices if no number is given
+      // Build file list
+      const fileList = mp3Files.map((file, idx) => ({
+        name: file.name, // simple file name, no commits
+        url: file.download_url
+      }));
+
+      // No args: list voices
       if (!args[0]) {
-        let listText = '🎵 Voice List (from commit names):\n\n';
+        let listText = '🎵 Voice List:\n\n';
         fileList.forEach((file, idx) => listText += `${idx + 1}. ${file.name}\n`);
         return api.editMessage(listText, statusMsg.messageID);
       }
 
-      // User selects number
+      // User selected number
       const index = parseInt(args[0]) - 1;
       if (isNaN(index) || index < 0 || index >= fileList.length)
         return api.editMessage('❌ Invalid selection number!', statusMsg.messageID);
@@ -67,7 +65,7 @@ module.exports = {
       await fs.writeFile(tempPath, Buffer.from(mp3Res.data));
 
       // Determine target thread
-      const targetThread = replyUserID ? replyUserID : threadID;
+      const targetThread = replyUserID || threadID;
 
       // Send MP3
       await new Promise((resolve, reject) => {
@@ -81,6 +79,7 @@ module.exports = {
         }, messageID);
       });
 
+      // Remove status
       await api.unsendMessage(statusMsg.messageID);
 
     } catch (error) {
