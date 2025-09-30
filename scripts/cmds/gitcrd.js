@@ -4,7 +4,7 @@ const path = require('path');
 
 module.exports = {
   config: {
-    name: "gitcard",
+    name: "githubcrd",
     version: "1.0",
     author: "Farhan",
     role: 0,
