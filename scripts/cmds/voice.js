@@ -1,94 +1,97 @@
 const axios = require("axios");
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
 
-// GitHub public folder
-const repoFolder = "https://github.com/Gtajisan/voice-bot/tree/main/public";
-const downloadBase = "https://github.com/Gtajisan/voice-bot/raw/main/public/";
+// Cache voice lists per thread for reply
+const voiceLists = {};
 
 module.exports = {
   config: {
     name: "voice",
-    version: "2.0",
+    aliases: ["voices"],
+    version: "1.2",
     author: "Farhan",
-    countDown: 5,
-    role: 0,
-    description: { en: "List and play stored voice mp3 files" },
+    prefix: true,
+    description: "List mp3 files and send them only by reply with a number.",
     category: "media",
-    guide: { en: "{pn} voice" }
-  },
-
-  onStart: async ({ api, event, commandName }) => {
-    try {
-      // Fetch HTML page of repo folder
-      const { data } = await axios.get(repoFolder);
-
-      // Extract all .mp3 filenames
-      const regex = /title="([^"]+\.mp3)"/g;
-      let voices = [];
-      let match;
-      while ((match = regex.exec(data)) !== null) {
-        voices.push(match[1]);
-      }
-
-      if (voices.length === 0) {
-        return api.sendMessage("❌ No MP3 voices found.", event.threadID, event.messageID);
-      }
-
-      // Build list message
-      let msg = "🎵 Voice List:\n\n";
-      voices.forEach((v, i) => {
-        msg += `${i + 1}. ${v}\n`;
-      });
-      msg += "\n💡 Reply with a number to get that voice.";
-
-      // Send list and save reply context
-      api.sendMessage(msg, event.threadID, (err, info) => {
-        if (err) return;
-        global.GoatBot.onReply.set(info.messageID, {
-          commandName,
-          author: event.senderID,
-          voices
-        });
-      }, event.messageID);
-
-    } catch (err) {
-      console.error(err);
-      api.sendMessage("❌ Failed to fetch voices.", event.threadID, event.messageID);
+    guide: {
+      en: "{pn}voice → list voices\nReply with a number → get that voice"
     }
   },
 
-  onReply: async ({ api, event, Reply }) => {
-    try {
-      // Only the original user can reply
-      if (event.senderID !== Reply.author) return;
+  onStart: async ({ api, event }) => {
+    const threadID = event.threadID;
+    const messageID = event.messageID;
 
-      const choice = parseInt(event.body.trim());
-      if (isNaN(choice) || choice < 1 || choice > Reply.voices.length) {
-        return api.sendMessage("❌ Invalid number.", event.threadID, event.messageID);
+    try {
+      // Fetch mp3 list from GitHub API
+      const repoUrl = "https://api.github.com/repos/Gtajisan/voice-bot/contents/public";
+      const res = await axios.get(repoUrl);
+      const mp3Files = res.data.filter(f => f.name.endsWith(".mp3"));
+
+      if (!mp3Files.length) {
+        return api.sendMessage("❌ No mp3 files found.", threadID, messageID);
       }
 
-      const fileName = Reply.voices[choice - 1];
-      const fileUrl = downloadBase + encodeURIComponent(fileName);
-      const filePath = path.join(__dirname, "cache", fileName);
+      const fileList = mp3Files.map(f => ({
+        name: f.name,
+        url: f.download_url
+      }));
 
-      fs.mkdirSync(path.join(__dirname, "cache"), { recursive: true });
+      // Save list in memory with the message ID
+      voiceLists[threadID] = { files: fileList };
 
-      // Download the mp3
-      const res = await axios.get(fileUrl, { responseType: "arraybuffer" });
-      fs.writeFileSync(filePath, Buffer.from(res.data));
+      // Build list message
+      let listText = "🎵 Voice List:\n\n";
+      fileList.forEach((f, i) => {
+        listText += `${i + 1}. ${f.name}\n`;
+      });
+      listText += "\n💡 Reply with a number to get that voice.";
 
-      // Send mp3
-      await api.sendMessage(
-        { attachment: fs.createReadStream(filePath) },
-        event.threadID,
-        () => fs.unlinkSync(filePath),
-        event.messageID
-      );
+      // Send list
+      api.sendMessage(listText, threadID, (err, info) => {
+        if (!err) {
+          voiceLists[threadID].messageID = info.messageID;
+        }
+      }, messageID);
 
     } catch (err) {
-      console.error(err);
-      api.sendMessage("❌ Error sending voice.", event.threadID, event.messageID);
+      console.error("[voice] Fetch error:", err);
+      return api.sendMessage("❌ Error fetching voices.", threadID, messageID);
+    }
+  },
+
+  onReply: async ({ api, event }) => {
+    const threadID = event.threadID;
+    const messageID = event.messageID;
+    const replyMsgID = event.messageReply?.messageID;
+
+    const threadData = voiceLists[threadID];
+    if (!threadData || replyMsgID !== threadData.messageID) return;
+
+    const num = parseInt(event.body.trim());
+    if (isNaN(num) || num < 1 || num > threadData.files.length) return;
+
+    const file = threadData.files[num - 1];
+
+    try {
+      const tempPath = path.join(__dirname, `voice_${Date.now()}.mp3`);
+      const mp3Res = await axios.get(file.url, { responseType: "arraybuffer" });
+      await fs.writeFile(tempPath, Buffer.from(mp3Res.data));
+
+      await new Promise((resolve, reject) => {
+        api.sendMessage({
+          body: `🎤 ${file.name}`,
+          attachment: fs.createReadStream(tempPath)
+        }, threadID, (err) => {
+          fs.unlink(tempPath).catch(() => {});
+          if (err) reject(err);
+          else resolve();
+        }, messageID);
+      });
+    } catch (err) {
+      console.error("[voice] Send error:", err);
+      api.sendMessage("❌ Failed to send voice.", threadID, messageID);
     }
   }
 };
