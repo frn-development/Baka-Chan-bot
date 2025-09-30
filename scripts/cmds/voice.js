@@ -2,81 +2,87 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
-const voiceRepoPage = "https://github.com/Gtajisan/voice-bot/tree/main/public";
-const voiceRawBase = "https://raw.githubusercontent.com/Gtajisan/voice-bot/main/public/";
-
-let cachedVoices = [];
-let lastMessageID = null;
+const repoPage = "https://github.com/Gtajisan/voice-bot/tree/main/public";
+const downloadBase = "https://github.com/Gtajisan/voice-bot/raw/main/public/";
 
 module.exports = {
   config: {
     name: "voice",
-    aliases: [],
-    version: "2.0",
+    version: "1.3",
     author: "Farhan",
+    countDown: 5,
     role: 0,
-    shortDescription: "List and play voices",
-    longDescription: "Fetch .mp3 files from GitHub repo and send them when replied",
-    category: "fun",
-    guide: "{pn} voice",
+    description: { en: "List and play stored voice mp3 files" },
+    category: "media",
+    guide: { en: "{pn} voice" }
   },
 
-  onStart: async function ({ message }) {
+  onStart: async ({ api, event, commandName }) => {
     try {
-      // Old fetching system: scrape HTML for mp3 links
-      const { data } = await axios.get(voiceRepoPage);
+      // Fetch HTML page of repo
+      const { data } = await axios.get(repoPage);
       const regex = /title="([^"]+\.mp3)"/g;
 
-      cachedVoices = [];
+      let voices = [];
       let match;
       while ((match = regex.exec(data)) !== null) {
-        cachedVoices.push(match[1]);
+        voices.push(match[1]);
       }
 
-      if (cachedVoices.length === 0) {
-        return message.reply("❌ No MP3 voices found in repo.");
+      if (voices.length === 0) {
+        return api.sendMessage("❌ No MP3 voices found.", event.threadID, event.messageID);
       }
 
-      // build list
-      let list = "🎵 Voice List:\n\n";
-      cachedVoices.forEach((file, idx) => {
-        list += `${idx + 1}. ${file}\n`;
+      let msg = "🎵 Voice List:\n\n";
+      voices.forEach((v, i) => {
+        msg += `${i + 1}. ${v}\n`;
       });
-      list += "\n💡 Reply with a number to get that voice.";
+      msg += "\n💡 Reply with a number to get that voice.";
 
-      const sent = await message.reply(list);
-      lastMessageID = sent.messageID;
-    } catch (err) {
-      console.error(err);
-      message.reply("❌ Failed to fetch voices (old system).");
+      api.sendMessage(msg, event.threadID, (err, info) => {
+        if (err) return;
+        global.GoatBot.onReply.set(info.messageID, {
+          commandName,
+          author: event.senderID,
+          voices
+        });
+      }, event.messageID);
+
+    } catch (e) {
+      console.error(e);
+      return api.sendMessage("❌ Failed to fetch voices.", event.threadID, event.messageID);
     }
   },
 
-  onReply: async function ({ message, Reply }) {
-    if (Reply.messageID !== lastMessageID) return;
-
-    const choice = parseInt(message.body.trim());
-    if (isNaN(choice) || choice < 1 || choice > cachedVoices.length) {
-      return message.reply("❌ Invalid number. Try again.");
-    }
-
-    const fileName = cachedVoices[choice - 1];
-    const fileUrl = `${voiceRawBase}${encodeURIComponent(fileName)}`;
-    const filePath = path.join(__dirname, "tmp", fileName);
-
+  onReply: async ({ api, event, Reply }) => {
     try {
-      // download mp3
-      const res = await axios.get(fileUrl, { responseType: "arraybuffer" });
+      if (event.senderID !== Reply.author) return;
+      const choice = parseInt(event.body.trim());
+
+      if (isNaN(choice) || choice < 1 || choice > Reply.voices.length) {
+        return api.sendMessage("❌ Invalid number.", event.threadID, event.messageID);
+      }
+
+      const fileName = Reply.voices[choice - 1];
+      const url = downloadBase + encodeURIComponent(fileName);
+      const filePath = path.join(__dirname, "cache", fileName);
+
+      fs.mkdirSync(path.join(__dirname, "cache"), { recursive: true });
+
+      // Download file
+      const res = await axios.get(url, { responseType: "arraybuffer" });
       fs.writeFileSync(filePath, Buffer.from(res.data));
 
-      await message.reply({
-        attachment: fs.createReadStream(filePath),
-      });
+      await api.sendMessage(
+        { attachment: fs.createReadStream(filePath) },
+        event.threadID,
+        () => fs.unlinkSync(filePath),
+        event.messageID
+      );
 
-      fs.unlinkSync(filePath);
-    } catch (err) {
-      console.error(err);
-      message.reply("❌ Error sending voice.");
+    } catch (e) {
+      console.error(e);
+      api.sendMessage("❌ Error sending voice.", event.threadID, event.messageID);
     }
-  },
+  }
 };
