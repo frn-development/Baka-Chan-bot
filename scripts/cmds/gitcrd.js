@@ -4,9 +4,9 @@ const path = require('path');
 
 module.exports = {
   config: {
-    name: "githubcrd",
+    name: "gitcard",
     version: "1.0",
-    author: "YourName",
+    author: "Farhan",
     role: 0,
     countDown: 5,
     shortDescription: "Generate a GitHub profile card",
