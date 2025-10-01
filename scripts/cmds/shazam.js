@@ -14,7 +14,7 @@ module.exports = {
     description: {
       en: "Identify a song from a video or audio"
     },
-    category: "Tools",
+    category: "media",
     usage: {
       en: "Reply to a video or audio file to identify the song"
     },
