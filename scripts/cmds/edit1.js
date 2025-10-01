@@ -8,7 +8,7 @@ module.exports.config = {
   Auth: 0,
   Owner: "farhan",
   Info: "🎨 Edit an image using a prompt",
-  Class: "✧༺AI_Tools༻✧",
+  Class: "media",
   How: "edit <prompt> (reply to an image)"
 };
 
