@@ -2,7 +2,7 @@ const { NanoBanana: gen } = require('/tools/ai-image.js');
 const axios = require('axios');
 module.exports = {
 config: {
-	name: "edit",
+	name: "xdit",
 	author: "Tawsif~",
 	category: "ai",
 	countDown: 5,
