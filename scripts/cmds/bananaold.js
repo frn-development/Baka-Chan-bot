@@ -13,22 +13,22 @@ async function getSafeUsername(api, userID) {
 
 module.exports = {
   config: {
-    name: "fluxpro",
-    aliases: ["fluxai", "fluxp"],
+    name: "nanobanana",
+    aliases: ["nb", "neno"],
     version: "1.0",
-    author: "Farhan",
+    author: "Farhan ",
     countDown: 10,
     role: 0,
-    shortDescription: "Generate images with Flux 1.1 Pro Ultra",
-    longDescription: "Create high-quality AI images using Flux 1.1 Pro Ultra model with optional seed support.",
+    shortDescription: "Generate banana-themed images with NanoBanana API",
+    longDescription: "Creates fun, banana-inspired AI images from your prompt.",
     category: "image",
-    guide: "{pn} <prompt> [seed=123]\nExample: {pn} cyberpunk samurai in neon city seed=42"
+    guide: "{pn} <prompt> [seed=123]\nExample: {pn} funny goat eating banana seed=456"
   },
 
   onStart: async function ({ api, event, args, message }) {
     const fullInput = args.join(" ").trim();
     if (!fullInput) {
-      return message.reply("⚠️ Please provide a prompt.\nExample: flux anime girl with neon sword seed=789");
+      return message.reply("❌ Please provide a prompt.\nExample: nanobanana funny goat eating banana seed=456");
     }
 
     // Parse prompt and optional seed
@@ -45,32 +45,31 @@ module.exports = {
     }
 
     const username = await getSafeUsername(api, event.senderID);
-    const waitMsg = await message.reply(`🎨 Generating Flux Ultra image...\n🖌️ Prompt: "${prompt}"\n🌱 Seed: ${seed}\nPlease wait ⏳`);
+    const waitMsg = await message.reply("🍌 Generating your NanoBanana image... Please wait ⏳");
 
     try {
       await fs.ensureDir(path.join(__dirname, "cache"));
 
-      const apiURL = `https://dev.oculux.xyz/api/flux-1.1-pro-ultra`;
-      const apiRes = await axios.get(apiURL, {
-        params: { prompt, seed: seed.toString() },
-        timeout: 60000,
-        responseType: "arraybuffer"
+      const apiRes = await axios.get("https://dev.oculux.xyz/api/nanobanana", {
+        params: { prompt: encodeURIComponent(prompt), seed: seed.toString() },
+        timeout: 30000,
+        responseType: "arraybuffer" // Assume binary image response; change to 'json' if it returns {image: base64}
       });
 
-      const imgPath = path.join(__dirname, `cache/flux_${username}_${seed}.png`);
+      const imgPath = path.join(__dirname, `cache/nb_${username}_${seed}.png`);
       await fs.writeFile(imgPath, apiRes.data);
 
       await message.reply({
-        body: `✅ Flux Ultra generated!\nPrompt: ${prompt}\nSeed: ${seed}`,
+        body: `🍌 Neno Banana generated!\nPrompt: ${prompt}\nSeed: ${seed}`,
         attachment: fs.createReadStream(imgPath)
       }, waitMsg.messageID);
 
-      // Auto cleanup after 30s
+      // Clean up after 30 seconds
       setTimeout(() => fs.existsSync(imgPath) && fs.unlinkSync(imgPath), 30000);
 
     } catch (err) {
-      console.error("Flux Ultra Error:", err.message);
-      message.reply("❌ Failed to generate Flux image. Try again later.", waitMsg.messageID);
+      console.error("NanoBanana Error:", err.message);
+      message.reply("❌ Failed to generate image. Check the API or try again.", waitMsg.messageID);
     }
   }
 };
