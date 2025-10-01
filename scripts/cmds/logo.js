@@ -6,9 +6,9 @@ module.exports.config = {
   name: "logo",
   aliases: ["logogen", "makeLogo"],
   Auth: 0,
-  Owner: "Hina",
+  Owner: "farhna",
   Info: "🎨 Generate a logo using AI (no API key required)",
-  Class: "✧༺Tools_Menu༻✧",
+  Class: "media",
   How: "logo <description | name>"
 };
 
