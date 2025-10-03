@@ -92,60 +92,61 @@ async function mergeAvatars(url1, url2) {
   const cacheDir = path.join(__dirname, "cache");
   if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
 
-  const filePath = path.join(cacheDir, `kiss_${Date.now()}.png`);
+  const filePath = path.join(cacheDir, `kiss2_${Date.now()}.png`);
   fs.writeFileSync(filePath, canvas.toBuffer("image/png"));
   return filePath;
 }
 
-// === Command ===
+// === Goat Bot V2 Command ===
 module.exports = {
   config: {
     name: "kiss2",
-    Auth: 0,
-    Owner: "Hina",
-    Info: "😘 Kiss interaction between two people",
-    Class: "✧༺Fun_List༻✧",
-    How: "Reply to someone with 'kiss' OR use: kiss <uid1> <uid2>"
+    version: "1.0",
+    author: "Farhan (Gtajisan)",
+    countDown: 5,
+    role: 0,
+    shortDescription: { en: "Make two people kiss (fun)" },
+    longDescription: { en: "Reply to someone or use: kiss2 <uid1> <uid2> to generate a romantic kiss video." },
+    category: "fun",
+    guide: { en: "{pn} (reply)\n{pn} <uid1> <uid2>" }
   },
 
-  onType: async function ({ event, sh, usersData, args }) {
+  onStart: async function ({ event, message, args, usersData }) {
     let uid1, uid2;
 
     if (args.length >= 2) {
-      // Case: command with two IDs
+      // command with two IDs
       uid1 = args[0];
       uid2 = args[1];
     } else if (event.messageReply && event.messageReply.senderID) {
-      // Case: reply to someone
+      // reply mode
       uid1 = event.senderID;
       uid2 = event.messageReply.senderID;
     } else {
-      return sh.reply("❌ Please reply to someone or provide 2 UIDs like: kiss <uid1> <uid2>");
+      return message.reply("❌ Please reply to someone or provide 2 UIDs like: kiss2 <uid1> <uid2>");
     }
 
     const url1 = await getAvatar(uid1, usersData);
     const url2 = await getAvatar(uid2, usersData);
-
     const prompt = "two people kissing each other, romantic, realistic style";
 
-    await sh.react("⏳");
+    message.react("⏳");
 
     try {
       const mergedPath = await mergeAvatars(url1, url2);
       const result = await imgToVideo(prompt, mergedPath);
 
-      await sh.react("✅");
+      message.react("✅");
 
-      await sh.reply({
+      message.reply({
         body: `😘 | ${await usersData.getName(uid1)} is kissing ${await usersData.getName(uid2)}`,
         attachment: await getStreamFromURL(result[0].video_url)
       });
 
       fs.unlinkSync(mergedPath);
     } catch (err) {
-      console.error("kiss error:", err);
-      sh.reply("❌ An error occurred while creating the kiss video.");
+      console.error("kiss2 error:", err);
+      message.reply("❌ An error occurred while creating the kiss video.");
     }
   }
 };
-  
