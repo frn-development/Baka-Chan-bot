@@ -1,119 +1,146 @@
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-module.exports = {
-    config: {
-        name: "kiss",
-        aliases: [],
-        author: "Farhan",
-        countDown: 2,
-        role: 0,
-        description: "Generates a kiss image with command user and mentioned/replied user's avatars.",
-        category: "fun",
-        guide: {
-            en: "   {pn} @username or reply to a message: Generate a kiss image with the mentioned or replied user."
-        }
+const axios = require("axios");
+const { createCanvas, loadImage } = require("canvas");
+const fs = require("fs");
+const path = require("path");
+const FormData = require("form-data");
+
+// === API utils ===
+async function getStreamFromURL(url) {
+  const res = await axios.get(url, { responseType: "stream" });
+  return res.data;
+}
+
+function generateRandomId(len = 16) {
+  const chars = "abcdef0123456789";
+  return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
+async function getBalance() {
+  const pack = generateRandomId();
+  await axios.post("https://api.getglam.app/rewards/claim/hdnu30r7auc4kve", null, {
+    headers: {
+      "User-Agent": "Glam/1.58.4 Android/32 (Samsung SM-A156E)",
+      "glam-user-id": pack,
+      "user_id": pack,
+      "glam-local-date": new Date().toISOString(),
     },
+  });
+  return pack;
+}
 
-    onStart: async ({ event, api }) => {
-        try {
-            const chatId = event.threadID;
-            const userId = event.senderID;
-            const messageId = event.messageID;
+async function uploadFile(pack, stream, prompt, duration) {
+  const form = new FormData();
+  form.append("package_id", pack);
+  form.append("media_file", stream);
+  form.append("media_type", "image");
+  form.append("template_id", "community_img2vid");
+  form.append("template_category", "20_coins_dur");
+  form.append("frames", JSON.stringify([{
+    prompt,
+    custom_prompt: prompt,
+    start: 0,
+    end: 0,
+    timings_units: "frames",
+    media_type: "image",
+    style_id: "chained_falai_img2video",
+    rate_modifiers: { duration: duration.toString() + "s" },
+  }]));
 
-            const commandUserInfo = await api.getUserInfo(userId);
-            const commandUsername = commandUserInfo[userId]?.name || 'User';
-            const commandUserAvatar = `https://graph.facebook.com/${userId}/picture?width=512&height=512&access_token=6628568379|c1e620fa708a1d5696fb991c1bde5662`;
+  const res = await axios.post("https://android.getglam.app/v2/magic_video", form, {
+    headers: { ...form.getHeaders(), "User-Agent": "Glam/1.58.4 Android/32 (Samsung SM-A156E)" },
+  });
 
-            let targetUserId;
-            if (event.messageReply) {
-                targetUserId = event.messageReply.senderID;
-            } else if (event.mentions && Object.keys(event.mentions).length > 0) {
-                targetUserId = Object.keys(event.mentions)[0];
-            } else {
-                return api.sendMessage('Please mention a user using @username or reply to a message.', chatId, messageId);
-            }
+  return res.data.event_id;
+}
 
-            if (targetUserId === userId) {
-                return api.sendMessage('You cannot kiss yourself!', chatId, messageId);
-            }
+async function getStatus(taskID, pack) {
+  while (true) {
+    const res = await axios.get("https://android.getglam.app/v2/magic_video", {
+      params: { package_id: pack, event_id: taskID },
+      headers: { "User-Agent": "Glam/1.58.4 Android/32 (Samsung SM-A156E)" },
+    });
+    if (res.data.status === "READY") return [res.data];
+    await new Promise(r => setTimeout(r, 2000));
+  }
+}
 
-            const targetUserInfo = await api.getUserInfo(targetUserId);
-            const targetUsername = targetUserInfo[targetUserId]?.name || 'User';
-            const targetUserAvatar = `https://graph.facebook.com/${targetUserId}/picture?width=512&height=512&access_token=6628568379|c1e620fa708a1d5696fb991c1bde5662`;
+async function imgToVideo(prompt, filePath, duration = 5) {
+  const pack = await getBalance();
+  const task = await uploadFile(pack, fs.createReadStream(filePath), prompt, duration);
+  return await getStatus(task, pack);
+}
 
-          
-            const genderApiBase = 'https://hridoy-apis.vercel.app/tools/gender-predict';
-            const [commandGenderRes, targetGenderRes] = await Promise.all([
-                axios.get(`${genderApiBase}?name=${encodeURIComponent(commandUsername)}&apikey=hridoyXQC`),
-                axios.get(`${genderApiBase}?name=${encodeURIComponent(targetUsername)}&apikey=hridoyXQC`)
-            ]);
+// === Avatar fetch ===
+async function getAvatar(uid, usersData) {
+  let url = null;
+  try {
+    url = await usersData.getAvatarUrl(uid);
+  } catch (e) {}
+  if (!url) {
+    url = `https://graph.facebook.com/${uid}/picture?width=512&height=512`;
+  }
+  return url;
+}
 
-            const commandGender = commandGenderRes.data?.gender || 'unknown';
-            const targetGender = targetGenderRes.data?.gender || 'unknown';
+// === Merge two avatars into single img ===
+async function mergeAvatars(url1, url2) {
+  const img1 = await loadImage(url1);
+  const img2 = await loadImage(url2);
+  const size = 512;
 
-     
-            let avatar1, avatar2;
-            if (commandGender === 'female' || (commandGender === 'unknown' && targetGender === 'male')) {
-                avatar1 = commandUserAvatar;
-                avatar2 = targetUserAvatar;
-            } else {
-                avatar1 = targetUserAvatar;
-                avatar2 = commandUserAvatar;
-            }
+  const canvas = createCanvas(size * 2, size);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img1, 0, 0, size, size);
+  ctx.drawImage(img2, size, 0, size, size);
 
-            const apiUrl = `https://hridoy-apis.vercel.app/canvas/kiss?avatar1=${encodeURIComponent(avatar1)}&avatar2=${encodeURIComponent(avatar2)}&apikey=hridoyXQC`;
-            const tempDir = path.join(__dirname, '..', '..', 'temp');
-            const tempFilePath = path.join(tempDir, `${userId}_${Date.now()}.png`);
+  const cacheDir = path.join(__dirname, "cache");
+  if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
 
-            if (!fs.existsSync(tempDir)) {
-                fs.mkdirSync(tempDir);
-            }
+  const filePath = path.join(cacheDir, `kiss_${Date.now()}.png`);
+  fs.writeFileSync(filePath, canvas.toBuffer("image/png"));
+  return filePath;
+}
 
-            try {
-                const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
-                if (response.status !== 200) {
-                    throw new Error('Failed to generate kiss image');
-                }
-                fs.writeFileSync(tempFilePath, Buffer.from(response.data, 'binary'));
-            } catch (err) {
-                log('error', `Failed to fetch or save kiss image: ${err.message}`);
-                return api.sendMessage('Could not generate the kiss image. Please try again later.', chatId, messageId);
-            }
+// === Command ===
+module.exports = {
+  config: {
+    name: "kiss",
+    version: "1.1",
+    author: "Hina",
+    role: 0,
+    description: "😘 Send a kiss animation with the person you reply to",
+    category: "fun",
+    guide: "Reply to someone's message with: kiss"
+  },
 
-            const caption = `A kiss between ${commandUsername} and ${targetUsername} 😘`;
-            try {
-                api.sendMessage({
-                    body: caption,
-                    mentions: [
-                        { tag: commandUsername, id: userId },
-                        { tag: targetUsername, id: targetUserId }
-                    ],
-                    attachment: fs.createReadStream(tempFilePath)
-                }, chatId, () => {
-                    try {
-                        fs.unlinkSync(tempFilePath);
-                    } catch (err) {
-                        log('error', `Could not delete temp file: ${err.message}`);
-                    }
-                });
-            } catch (err) {
-                log('error', `Error sending message: ${err.message}`);
-                try {
-                    fs.unlinkSync(tempFilePath);
-                } catch (e) {}
-                return api.sendMessage('Something went wrong while sending the image.', chatId, messageId);
-            }
-
-            log('info', `Kiss command executed by ${userId} in thread ${chatId} with target ${targetUserId}`);
-        } catch (error) {
-            log('error', `Kiss command error: ${error && error.message ? error.message : error}`);
-            if (event && event.threadID)
-                api.sendMessage('Something went wrong. Please try again.', event.threadID);
-        }
+  onStart: async function ({ event, message, usersData }) {
+    if (!event.messageReply || !event.messageReply.senderID) {
+      return message.reply("❌ You must reply to someone's message to kiss them 😘");
     }
-};
 
-process.on('unhandledRejection', (reason, promise) => {
-    log('error', 'Unhandled Promise Rejection: ' + (reason && reason.message ? reason.message : reason));
-});
+    const uid1 = event.senderID;
+    const uid2 = event.messageReply.senderID;
+
+    const url1 = await getAvatar(uid1, usersData);
+    const url2 = await getAvatar(uid2, usersData);
+
+    const prompt = "two people kissing each other, romantic, realistic style";
+
+    const waitMsg = await message.reply("⏳ Generating your kiss video...");
+
+    try {
+      const mergedPath = await mergeAvatars(url1, url2);
+      const result = await imgToVideo(prompt, mergedPath);
+
+      await message.reply({
+        body: `😘 | ${await usersData.getName(uid1)} kissed ${await usersData.getName(uid2)}!`,
+        attachment: await getStreamFromURL(result[0].video_url)
+      });
+
+      fs.unlinkSync(mergedPath);
+    } catch (err) {
+      console.error("kiss command error:", err);
+      message.reply("❌ Error while generating kiss video.");
+    }
+  }
+};
