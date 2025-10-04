@@ -75,7 +75,7 @@ module.exports = {
   config: {
     name: "animate",
     version: "1.0",
-    author: "Gtajisan",
+    author: "goku black ",
     role: 0,
     description: "Animate a picture into a short video using a prompt",
     category: "fun",
